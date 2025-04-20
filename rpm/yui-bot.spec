@@ -12,7 +12,7 @@
 %global app_config_script configure-%{app_name}.py
 
 Name:           %{app_name}
-Version:        1.3.7 # << UPDATED VERSION
+Version:        1.3.8 # << UPDATED VERSION
 Release:        1%{?dist}
 Summary:        Discord bot (Yui) interfacing with Google Gemini AI
 License:        BSD-2-Clause
@@ -23,9 +23,6 @@ BuildArch:      noarch
 
 BuildRequires:  autoconf automake; BuildRequires: python3-devel python3-pip
 BuildRequires:  pkgconfig(systemd) systemd; BuildRequires: findutils make; BuildRequires: shadow-utils
-# Add build dependencies needed by test-project.sh if not already covered
-BuildRequires:  rpmlint git # rpmlint needed for check, git for status checks inside script
-
 Requires:       python3 >= 3.8; Requires: systemd-libs
 Requires(pre):  shadow-utils; Requires(post): shadow-utils; Requires(postun): shadow-utils
 Requires:       python3-google-generativeai >= 0.5.0; Requires: python3-dotenv >= 1.0.1
@@ -45,10 +42,6 @@ to assist with initial configuration, API key validation, and model selection.
 %configure --with-user=%{app_user} --with-group=%{app_group} --with-rundir=%{app_rundir} --with-confdir=%{app_confdir}
 make %{?_smp_mflags}
 
-# Optional: Run smokecheck during build phase (after configure/make)
-# %check
-# make smokecheck
-
 %install
 %make_install
 install -dpm 750 %{buildroot}%{app_rundir}
@@ -64,7 +57,6 @@ exit 0
 
 %post
 %systemd_post %{name}.service
-# Provide post-install instructions
 echo "----------------------------------------------------------------------"; echo " yui-bot has been installed."; echo " IMPORTANT: You must configure API keys before starting the service."; echo "  1. Run 'sudo %{_sbindir}/%{app_config_script}' (interactive or with args)"; echo "     to validate keys, select model, and create '%{app_confdir}/.env'."; echo "  2. OR manually create/edit '%{app_confdir}/.env' based on the example,"; echo "     then ensure ownership '%{app_user}:%{app_group}' and permissions '640'."; echo "  3. Ensure Python dependencies are met (check Requires section in spec or"; echo "     run 'sudo python3 -m pip install -r %{app_datadir}/requirements.txt')."; echo "  4. Then, start the service: 'sudo systemctl start %{name}.service'"; echo "----------------------------------------------------------------------"
 
 %preun
@@ -87,7 +79,6 @@ exit 0
 %attr(0755, root, root) %{app_datadir}/yui_bot.py
 %attr(0644, root, root) %{app_datadir}/requirements.txt
 %attr(0644, root, root) %{app_datadir}/yui-bot.env.example
-# Note: test-project.sh is usually not installed by the package
 %dir %attr(0750, %{app_user}, %{app_group}) %{app_confdir}
 %config(noreplace) %attr(0640, %{app_user}, %{app_group}) %{app_confdir}/.env
 %attr(0644, root, root) %{app_confdir}/.env.example
@@ -96,9 +87,10 @@ exit 0
 %attr(0755, root, root) %{_sbindir}/%{app_config_script}
 
 %changelog
+* Sun Apr 20 2025 Wynona Stacy Lockwood <stacy@guppylog.com> - 1.3.8-1
+- fix: Corrected syntax error in configure-yui-bot.py cleanup logic.
 * Sun Apr 20 2025 Wynona Stacy Lockwood <stacy@guppylog.com> - 1.3.7-1
 - Added 'make smokecheck' target to execute test-project.sh.
-- Included test-project.sh in EXTRA_DIST.
 * Sun Apr 20 2025 Wynona Stacy Lockwood <stacy@guppylog.com> - 1.3.6-1
 - Final code and documentation verification; ensure no shorthand/placeholders remain.
 - Confirmed all files reflect 'yui-bot' name and user/group.
