@@ -331,6 +331,8 @@ async def on_ready():
     except Exception as e:
         logger.error(f"Error during on_ready tasks (status/help format): {e}", exc_info=True)
 
+# This decorator needs the client instance, registered in main()
+# @discord_client.event
 async def on_message(message):
     """Handles incoming messages."""
     global discord_client, config, conversations, gemini_model, BOTSNACK_VIDEO_URL
@@ -608,7 +610,7 @@ def main():
         except (pidfile.PIDFileCreateError, OSError) as e:
              logger.critical(f"Could not create PID directory/file at {args.pidfile}. Check path/permissions: {e}", exc_info=True)
              sys.exit(1)
-        except Exception as e: # Catch any other pidfile init errors
+        except Exception as e: # Catch other unexpected pidfile init errors
              logger.critical(f"Unexpected error initializing PID file handling: {e}", exc_info=True)
              sys.exit(1)
     else:
@@ -649,12 +651,14 @@ def main():
 
             # Setup Signal Handling (Best effort)
             try:
-                 # Use synchronous handler to schedule async cleanup
-                 signal.signal(signal.SIGTERM, handle_signal_sync)
-                 signal.signal(signal.SIGINT, handle_signal_sync)
+                 loop = asyncio.get_event_loop()
+                 # Use loop.add_signal_handler on Unix systems
+                 loop.add_signal_handler(signal.SIGTERM, lambda: asyncio.create_task(cleanup_shutdown()))
+                 loop.add_signal_handler(signal.SIGINT, lambda: asyncio.create_task(cleanup_shutdown()))
                  logger.info("Signal handlers registered.")
             except NotImplementedError:
                  logger.warning("Signal handlers not supported on this platform (e.g., Windows).")
+                 # Fallback or alternative cleanup might be needed for Windows if run as service
             except ValueError:
                  logger.warning("Cannot set signal handlers in non-main thread (might be embedded).")
             except Exception as e:
@@ -665,7 +669,7 @@ def main():
             discord_client.run(
                 config['DISCORD_BOT_TOKEN'],
                 log_handler=None, # Use our configured logger
-                log_level=logging.INFO # Set discord lib's logger level (adjust if too noisy)
+                log_level=logging.INFO # Set discord.py's internal logger level
             )
             # This part is reached only upon clean shutdown (e.g., client.close() called)
             logger.info("Discord client run loop finished normally.")
@@ -682,7 +686,7 @@ def main():
          main_exit_code = 1
     except KeyboardInterrupt: # Handle Ctrl+C gracefully if signal handler fails/unavailable
          logger.warning("KeyboardInterrupt received.")
-         # Cleanup might happen via signal handler or atexit, PID context ensures release
+         # Cleanup might happen via signal handler, PID context ensures release
     except SystemExit as e: # Catch sys.exit calls
         logger.warning(f"SystemExit called with code {e.code}")
         main_exit_code = e.code if isinstance(e.code, int) else 1

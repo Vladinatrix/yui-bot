@@ -102,3 +102,4 @@ Copyright (c) 2025 Guppy Girl Genetics Software.
 * Restart: `sudo systemctl restart yui-bot`
 * Status: `sudo systemctl status yui-bot`
 * Logs: `sudo journalctl -u yui-bot -f`
+

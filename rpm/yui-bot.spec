@@ -31,8 +31,7 @@ Requires:       python3-dotenv >= 1.0.1
 Requires:       python3-pidfile >= 3.0.0
 Requires:       python3-psutil >= 5.9.0
 Requires:       python3-discord.py >= 2.3.2
-# Ensure python3-pip is required if using %post install method below
-# Requires(post): python3-pip
+# Ensure these package names match RHEL 9 / EPEL 9 or use pip in %post
 
 %description
 A Discord bot named Yui that uses the Google Gemini AI API to respond
@@ -63,10 +62,9 @@ exit 0
 
 %post
 # --- OPTION: Install Python deps via pip ---
-# echo "Installing/Updating Python requirements system-wide using pip..."
 # %{__python3} -m pip install --upgrade -r %{app_datadir}/requirements.txt || :
 %systemd_post %{name}.service
-# Provide post-install instructions about configuration
+# Provide post-install instructions
 echo "----------------------------------------------------------------------"
 echo " yui-bot has been installed."
 echo " IMPORTANT: You must configure API keys before starting the service."
@@ -108,7 +106,7 @@ exit 0
 
 %changelog
 * Sun Apr 20 2025 Wynona Stacy Lockwood <stacy@guppylog.com> - 1.3.6-1
-- Final verification pass, ensured no shorthand placeholders remain in code/docs.
+- Final code and documentation verification; ensured no shorthand/placeholders remain.
 - Confirmed all files reflect 'yui-bot' name and user/group.
 * Sun Apr 20 2025 Wynona Stacy Lockwood <stacy@guppylog.com> - 1.3.5-1
 - Replaced bash config script with Python version (configure-yui-bot.py).
