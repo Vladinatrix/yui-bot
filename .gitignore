@@ -1,0 +1,59 @@
+# Autotools generated files
+Makefile.in
+aclocal.m4
+autom4te.cache/
+compile
+config.guess
+config.h.in
+config.sub
+configure
+depcomp
+install-sh
+missing
+stamp-h1
+config.status
+config.log
+config.h
+
+# Make artifacts
+Makefile
+*.o
+*.lo
+*.la
+*.lai
+
+# Distribution files
+*.tar.gz
+*.tar.bz2
+*.zip
+
+# Python cache/compiled files
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environment folders
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Local config secrets (NEVER commit the actual .env file)
+.env
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# RPM build artifacts (if generated locally in source tree)
+RPMS/
+SRPMS/
+BUILD/
+BUILDROOT/
+
+# OS generated files
+.DS_Store
+Thumbs.db

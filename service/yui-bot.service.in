@@ -1,0 +1,39 @@
+# Copyright (c) 2025 Guppy Girl Genetics Software
+# SPDX-License-Identifier: BSD-2-Clause
+# See LICENSE file for full text.
+#
+# Systemd Unit File Template for @PACKAGE_NAME@
+# Processed by configure script.
+
+[Unit]
+Description=Yui Discord Bot Service (@PACKAGE_NAME@)
+After=network.target
+
+[Service]
+Type=simple
+User=@installuser@
+Group=@installgroup@
+WorkingDirectory=@pkgdatadir@
+
+# --- Execution ---
+ExecStart=@PYTHON3@ @pkgdatadir@/yui_bot.py --config @envfile@ --pidfile @pidfile@ --log-level INFO
+PIDFile=@pidfile@
+Restart=on-failure
+RestartSec=5s
+
+# --- Environment ---
+Environment=PYTHONUNBUFFERED=1
+
+# --- Security Hardening ---
+# AmbientCapabilities=; CapabilityBoundingSet=;
+NoNewPrivileges=yes; PrivateTmp=yes; ProtectSystem=strict; ProtectHome=yes;
+ReadWritePaths=@apprundir@; #ProtectKernelTunables=yes; ProtectKernelModules=yes;
+ProtectControlGroups=yes; RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6;
+RestrictNamespaces=yes; RestrictRealtime=yes; SystemCallArchitectures=native;
+SystemCallFilter=@system-service; SystemCallFilter=~@privileged @resources @raw-io @reboot @swap;
+
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
