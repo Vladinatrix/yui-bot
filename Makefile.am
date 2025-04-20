@@ -34,13 +34,8 @@ EXTRA_DIST = \
     test-project.sh
 
 # --- Cleanup ---
-# Add the generated service/initd files to CLEANFILES
 CLEANFILES = service/yui-bot.service \
              service/yui-bot.initd
-
-# --- Remove Install/Uninstall Hooks ---
-# install-data-hook: ; # Empty rule if needed, or just remove
-# uninstall-hook: ; # Empty rule if needed, or just remove
 
 # --- Custom Check Target ---
 check-deps:
@@ -71,7 +66,9 @@ srpm: dist
 	@echo "Running $(RPMBUILD) -bs..."
 	spec_basename=$$(basename "$(RPM_SPEC_FILE)"); \
 	$(RPMBUILD) -bs "$(RPM_SPECS_DIR)/$$spec_basename"
-	@echo "---------------------"; @echo "SRPM should be in $(RPM_BUILD_DIR)/SRPMS/"; @echo "---------------------"
+	@echo "---------------------"
+	@echo "SRPM should be in $(RPM_BUILD_DIR)/SRPMS/"
+	@echo "---------------------"
 
 rpm: dist
 	@echo "--- Building RPMs (Binary & Source) ---"
@@ -83,7 +80,10 @@ rpm: dist
 	@echo "Running $(RPMBUILD) -ba..."
 	spec_basename=$$(basename "$(RPM_SPEC_FILE)"); \
 	$(RPMBUILD) -ba "$(RPM_SPECS_DIR)/$$spec_basename"
-	@echo "---------------------"; @echo "RPMs should be in $(RPM_BUILD_DIR)/RPMS/"; @echo "SRPM should be in $(RPM_BUILD_DIR)/SRPMS/"; @echo "---------------------"
+	@echo "---------------------"
+	@echo "Binary RPM(s) should be in $(RPM_BUILD_DIR)/RPMS/"
+	@echo "SRPM should be in $(RPM_BUILD_DIR)/SRPMS/"
+	@echo "---------------------"
 
 # Declare phony targets
-.PHONY: check-deps rpm srpm smokecheck all install-data-hook uninstall-hook
+.PHONY: check-deps rpm srpm smokecheck all
