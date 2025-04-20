@@ -38,38 +38,36 @@ DEFAULT_PID_PATH = os.path.join(DEFAULT_RUN_DIR, PID_FILENAME)
 DEFAULT_ENV_FILE = os.path.join(DEFAULT_CONFIG_DIR, ".env")
 
 MAX_MESSAGE_LENGTH = 1990
+BOTSNACK_VIDEO_URL = "https://www.youtube.com/watch?v=vGcHnP4_i3g" # C is for Lettuce URL
 
 # --- Logger Setup ---
 logger = logging.getLogger(APP_NAME)
-
+# (setup_logging function remains the same as previous version)
 def setup_logging(log_level_str='INFO', log_to_console=False):
-    """Configures logging to syslog and optionally console."""
     try: log_level = getattr(logging, log_level_str.upper())
     except AttributeError: print(f"Warning: Invalid log level '{log_level_str}'. Defaulting to INFO.", file=sys.stderr); log_level = logging.INFO
     logger.setLevel(log_level)
     if logger.hasHandlers(): logger.handlers.clear()
     formatter = logging.Formatter(f'{APP_NAME}[%(process)d]: %(levelname)s - %(message)s')
-    # Syslog Handler
-    syslog_address = '/dev/log'
+    syslog_address = '/dev/log' # Default for Linux
     if sys.platform == 'darwin': syslog_address = '/var/run/syslog'
     elif not os.path.exists(syslog_address) and not isinstance(syslog_address, tuple):
-        try: import socket; syslog_address = ('127.0.0.1', 514); socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        except Exception: syslog_address = '/dev/log'
+        try: import socket; syslog_address = ('127.0.0.1', 514); socket.socket(socket.AF_INET, socket.SOCK_DGRAM); logger.debug("Using UDP syslog fallback.")
+        except Exception: syslog_address = '/dev/log'; logger.debug("Reverting to /dev/log for syslog.")
     try:
         syslog_handler = logging.handlers.SysLogHandler(address=syslog_address)
         syslog_handler.setFormatter(formatter); logger.addHandler(syslog_handler)
         addr_str = f"{syslog_address[0]}:{syslog_address[1]}" if isinstance(syslog_address, tuple) else syslog_address
         logger.debug(f"Logging initialized. Level: {logging.getLevelName(log_level)}. Output: Syslog ({addr_str})")
     except Exception as e: print(f"Warning: Could not setup syslog handler ({syslog_address}): {e}.", file=sys.stderr); log_to_console = True
-    # Console Handler
     if log_to_console:
         console_handler = logging.StreamHandler(sys.stderr)
         console_handler.setFormatter(formatter); logger.addHandler(console_handler)
         logger.debug("Console logging enabled.")
 
 # --- Configuration Loading ---
+# (load_configuration function remains the same)
 def load_configuration(env_file_path):
-    """Loads configuration from .env file, validates, returns config dict."""
     logger.info(f"Loading configuration from: {env_file_path}")
     if not os.path.isfile(env_file_path): logger.critical(f"Config file not found: {env_file_path}"); sys.exit(1)
     if not os.access(env_file_path, os.R_OK): logger.critical(f"Config file not readable: {env_file_path}"); sys.exit(1)
@@ -86,10 +84,8 @@ def load_configuration(env_file_path):
     if not config['AUTHOR_DISCORD_ID']: logger.warning("AUTHOR_DISCORD_ID missing. -dono disabled.")
     else: logger.info(f"Author Discord ID loaded: {config['AUTHOR_DISCORD_ID']}")
     timeout_str = os.getenv("CONVERSATION_TIMEOUT_SECONDS", "3600")
-    try:
-        config['CONVERSATION_TIMEOUT_SECONDS'] = int(timeout_str)
-        if config['CONVERSATION_TIMEOUT_SECONDS'] <= 0: raise ValueError("Timeout must be positive")
-    except (ValueError, TypeError): logger.warning(f"Invalid CONVERSATION_TIMEOUT_SECONDS ('{timeout_str}'). Defaulting 3600."); config['CONVERSATION_TIMEOUT_SECONDS'] = 3600
+    try: config['CONVERSATION_TIMEOUT_SECONDS'] = int(timeout_str); assert config['CONVERSATION_TIMEOUT_SECONDS'] > 0
+    except (ValueError, TypeError, AssertionError): logger.warning(f"Invalid CONVERSATION_TIMEOUT_SECONDS ('{timeout_str}'). Defaulting 3600."); config['CONVERSATION_TIMEOUT_SECONDS'] = 3600
     config['CONVERSATION_TIMEOUT_DELTA'] = timedelta(seconds=config['CONVERSATION_TIMEOUT_SECONDS'])
     logger.info(f"Conversation timeout: {config['CONVERSATION_TIMEOUT_SECONDS']}s.")
     logger.info("Configuration loaded.")
@@ -100,7 +96,7 @@ conversations = {}
 config = {}
 discord_client = None
 gemini_model = None
-# Man page content template (formatted in on_ready)
+# Updated Man Page Content Template
 BASE_BOT_MAN_PAGE_CONTENT = """
 NAME
     {bot_name} - An AI assistant Discord bot powered by Google Gemini.
@@ -110,11 +106,12 @@ SYNOPSIS
     @{bot_name} man <command_name>
     @{bot_name} man @{bot_name}
     @{bot_name} help
+    @{bot_name} botsnack | bot snack
 
 DESCRIPTION
     {bot_name} integrates with Google's Gemini AI ({gemini_model_name} model) to answer questions, generate text, and provide information directly within Discord. It operates by responding to direct mentions.
 
-    It includes a feature to fetch and display standard Linux/Unix man pages by querying the AI, and provides its own documentation via the `man @{bot_name}` command. The `help` command provides a pointer to the full documentation.
+    It includes a feature to fetch and display standard Linux/Unix man pages by querying the AI, and provides its own documentation via the `man @{bot_name}` command. The `help` command provides a pointer to the full documentation. It also has a fun 'botsnack' command.
 
 COMMANDS
     <prompt>
@@ -128,6 +125,9 @@ COMMANDS
 
     help
         Displays a short message directing you to use the `man @{bot_name}` command for full help.
+
+    botsnack | bot snack
+        Replies with "OM NOM NOM!" and a link to a certain song about lettuce.
 
 CONVERSATION HISTORY
     The bot maintains a limited conversation history for each user within each specific channel.
@@ -146,6 +146,7 @@ EXAMPLES
     @{bot_name} man systemd
     @{bot_name} man @{bot_name}
     @{bot_name} help
+    @{bot_name} botsnack
 
 NOTES
     Powered by `google-generativeai` and `discord.py`. AI responses depend on the underlying Gemini model. Requires specific Discord Intents (Messages, Message Content, Guilds). Ensure the bot has appropriate permissions in the channels it operates in. Check service logs for detailed operational information (e.g., using `journalctl -u {app_name}`).
@@ -153,16 +154,16 @@ NOTES
 BOT_MAN_PAGE_CONTENT = "Bot man page content loading..."
 
 # --- Helper Function for Honorifics ---
+# (format_user_mention function remains the same)
 def format_user_mention(user_obj, author_id_config_str):
-    """Formats user mentions with appropriate honorifics."""
     author_id_str = str(author_id_config_str) if author_id_config_str else None
-    user_id_str = str(user_obj.id)
-    name = user_obj.display_name
+    user_id_str = str(user_obj.id); name = user_obj.display_name
     if author_id_str and user_id_str == author_id_str: return f"@{name}-dono"
     elif user_obj.bot: return f"@{name}-chan"
     else: return f"@{name}-san"
 
 # --- Other Helper Functions (History, Split Message) ---
+# (get_relevant_history and send_split_message functions remain the same)
 def get_relevant_history(channel_id, user_id, current_time_utc):
     history_key = (channel_id, user_id); user_channel_history = conversations.get(history_key, [])
     if not user_channel_history: return []
@@ -184,11 +185,10 @@ async def send_split_message(channel, text):
     try:
         in_code_block = False; block_prefix = ""; block_suffix = "\n```"; text_inside = text
         if text.startswith("```") and text.endswith("```"):
-            try:
-                first_nl = text.index('\n') + 1; last_nl = text.rindex('\n')
-                if last_nl > first_nl: block_prefix = text[:first_nl]; block_suffix = text[last_nl:]; text_inside = text[first_nl:last_nl].strip();
-                if block_suffix.strip() == "```": block_suffix = "\n```"; else: block_prefix = ""; block_suffix = ""; text_inside = text
-                in_code_block = True if block_prefix else False
+            try: first_nl = text.index('\n') + 1; last_nl = text.rindex('\n');
+            if last_nl > first_nl: block_prefix = text[:first_nl]; block_suffix = text[last_nl:]; text_inside = text[first_nl:last_nl].strip();
+            if block_suffix.strip() == "```": block_suffix = "\n```"; else: block_prefix = ""; block_suffix = ""; text_inside = text
+            in_code_block = True if block_prefix else False
             except ValueError: in_code_block = False
         text = text_inside; current_pos = 0; msg_count = 0
         while current_pos < len(text):
@@ -209,6 +209,7 @@ async def send_split_message(channel, text):
 
 # --- Discord Event Handlers ---
 async def on_ready():
+    # (Function content updated to use global APP_NAME)
     global BOT_MAN_PAGE_CONTENT, discord_client, config, APP_NAME
     if not discord_client or not discord_client.user: logger.error("Internal error: Discord client not ready in on_ready."); return
     logger.info(f'Logged in as {discord_client.user.name} (ID: {discord_client.user.id})')
@@ -217,15 +218,16 @@ async def on_ready():
         BOT_MAN_PAGE_CONTENT = BASE_BOT_MAN_PAGE_CONTENT.format(
             bot_name=discord_client.user.name, gemini_model_name=config.get('GEMINI_MODEL_NAME', 'N/A'),
             timeout_seconds=config.get('CONVERSATION_TIMEOUT_SECONDS', 'N/A'), timeout_delta=config.get('CONVERSATION_TIMEOUT_DELTA', 'N/A'),
-            env_file_path=config.get('ENV_FILE_PATH', 'N/A'), app_name=APP_NAME )
+            env_file_path=config.get('ENV_FILE_PATH', 'N/A'), app_name=APP_NAME ) # Pass APP_NAME
         logger.debug("Bot Man Page content formatted.")
         status_name = f"man @{discord_client.user.name}"
         await discord_client.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name=status_name))
         logger.info(f"Set status: Listening to {status_name}")
     except Exception as e: logger.error(f"Error during on_ready tasks: {e}", exc_info=True)
 
+@discord_client.event # Added decorator here assuming discord_client is initialized before main registers events
 async def on_message(message):
-    global discord_client, config, conversations, gemini_model
+    global discord_client, config, conversations, gemini_model, BOTSNACK_VIDEO_URL # Added URL to globals accessed
     if message.author == discord_client.user: return
     if not discord_client or not discord_client.user: return
     if message.guild is None: return
@@ -240,18 +242,26 @@ async def on_message(message):
     if mentioned and not prompt_content: logger.info(f"Empty mention from {message.author.name}. Ignoring."); return
 
     author_mention_str = format_user_mention(message.author, config.get('AUTHOR_DISCORD_ID'))
+    prompt_lower = prompt_content.lower() # Lowercase once for checks
 
-    # Handle `help` Alias
-    if prompt_content.lower() == 'help':
+    # --- Handle `botsnack` Command --- << NEW BLOCK
+    if prompt_lower == "botsnack" or prompt_lower == "bot snack":
+        logger.info(f"Botsnack command triggered by {author_mention_str} in C:{message.channel.id}")
+        response_text = f"OM NOM NOM!\n{BOTSNACK_VIDEO_URL}"
+        await send_split_message(message.channel, response_text)
+        return # Stop processing this command
+
+    # --- Handle `help` Alias ---
+    if prompt_lower == 'help':
         if discord_client.user:
              hint_message = f"Help is available by typing `@{discord_client.user.name} man @{discord_client.user.name}`"
              logger.info(f"Sending help hint to {author_mention_str} in C:{message.channel.id}.")
              await send_split_message(message.channel, hint_message)
         return
 
-    # Handle `man` Request Logic
+    # --- Handle `man` Request Logic ---
     is_man_request = False; man_query = ""; gemini_prompt = prompt_content
-    if prompt_content.lower().startswith("man "):
+    if prompt_lower.startswith("man "): # Use lowercased version
         is_man_request = True; man_query = prompt_content[len("man "):].strip()
         bot_mention_string_1 = f'<@{discord_client.user.id}>'; bot_mention_string_2 = f'<@!{discord_client.user.id}>'
         # Special Case: `man @BotName`
@@ -268,7 +278,8 @@ async def on_message(message):
             gemini_prompt = (f"Generate the content of the standard Linux/Unix man page for: '{man_query}'. Use typical man page structure. If none exists or you cannot provide it, respond *only* with: 'man: no manual entry for {man_query}'")
     else: logger.info(f"Processing general prompt from {author_mention_str}: '{prompt_content[:100]}...'")
 
-    # Common Logic: History, Gemini Call, Response
+    # --- Common Logic: History, Gemini Call, Response ---
+    # (This part remains the same as the previous version)
     current_time_utc = datetime.datetime.now(datetime.timezone.utc); history_key = (message.channel.id, message.author.id)
     relevant_gemini_history = get_relevant_history(message.channel.id, message.author.id, current_time_utc)
     async with message.channel.typing():
@@ -313,17 +324,15 @@ async def on_message(message):
 
 
 # --- Signal Handling and Cleanup ---
+# (Functions remain the same)
 async def cleanup_shutdown():
-    """Attempt graceful shutdown on signal."""
     logger.warning("Shutdown requested...")
     if discord_client and (discord_client.is_ready() or not discord_client.is_closed()):
         try: logger.info("Closing Discord client..."); await discord_client.close(); logger.info("Discord client closed.")
         except Exception as e: logger.error(f"Error closing Discord client: {e}", exc_info=True)
 
 def handle_signal_sync(signum, frame):
-    """Sync signal handler to schedule async cleanup."""
-    signal_name = signal.Signals(signum).name
-    logger.warning(f"Received signal {signal_name} ({signum}).")
+    signal_name = signal.Signals(signum).name; logger.warning(f"Received signal {signal_name} ({signum}).")
     try:
         if discord_client and discord_client.loop and discord_client.loop.is_running(): asyncio.run_coroutine_threadsafe(cleanup_shutdown(), discord_client.loop)
         else: logger.warning("Event loop/client unavailable for async cleanup.")
@@ -331,6 +340,7 @@ def handle_signal_sync(signum, frame):
 
 # --- Main Execution ---
 def main():
+    # (Function remains the same as previous version, registering events correctly)
     global config, discord_client, gemini_model, APP_NAME
     parser = argparse.ArgumentParser(description=f"{APP_NAME} - Discord bot using Google Gemini.", prog=APP_NAME)
     parser.add_argument('--config', default=DEFAULT_ENV_FILE, help=f"Path to .env config file (default: {DEFAULT_ENV_FILE})")
@@ -338,17 +348,13 @@ def main():
     parser.add_argument('--log-level', default='INFO', choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], help="Logging level (default: INFO)")
     parser.add_argument('--foreground', '-f', action='store_true', help="Run in foreground with console logging (ignores PID file).")
     args = parser.parse_args()
-
     setup_logging(log_level_str=args.log_level, log_to_console=args.foreground)
     logger.info(f"--- Starting {APP_NAME} bot ---")
-
     try: config = load_configuration(args.config)
     except SystemExit: raise
     except Exception as e: logger.critical(f"Config load exception: {e}", exc_info=True); sys.exit(1)
-
-    # PID File Handling
     pid_manager_context = contextlib.nullcontext()
-    if not args.foreground:
+    if not args.foreground: # PID Handling
         pid_dir = os.path.dirname(args.pidfile); logger.debug(f"Checking PID file: {args.pidfile}")
         if os.path.exists(args.pidfile):
             try:
@@ -359,28 +365,24 @@ def main():
         try: os.makedirs(pid_dir, mode=0o750, exist_ok=True); pid_manager_context = pidfile.PIDFile(args.pidfile, appname=APP_NAME)
         except Exception as e: logger.critical(f"Failed setup PID {args.pidfile}: {e}", exc_info=True); sys.exit(1)
     else: logger.info("Running foreground, PID file skipped.")
-
-    # Initialize Services and Run Bot
     main_exit_code = 0
-    try:
+    try: # Main execution block
         with pid_manager_context:
             if not args.foreground: logger.info(f"Acquired PID lock: {args.pidfile}")
-            try: # Initialize Gemini
-                logger.info(f"Initializing Gemini: {config['GEMINI_MODEL_NAME']}"); genai.configure(api_key=config['GEMINI_API_KEY'])
-                gemini_model = genai.GenerativeModel(config['GEMINI_MODEL_NAME']); logger.info("Gemini initialized.")
+            try: logger.info(f"Initializing Gemini: {config['GEMINI_MODEL_NAME']}"); genai.configure(api_key=config['GEMINI_API_KEY']); gemini_model = genai.GenerativeModel(config['GEMINI_MODEL_NAME']); logger.info("Gemini initialized.")
             except Exception as e: logger.critical(f"Gemini Init Error: {e}", exc_info=True); raise
-            try: # Initialize Discord Client
+            try:
                 logger.info("Initializing Discord client..."); intents = discord.Intents.default(); intents.messages = True; intents.message_content = True; intents.guilds = True
-                discord_client = discord.Client(intents=intents, heartbeat_timeout=90); discord_client.event(on_ready); discord_client.event(on_message); logger.info("Discord client initialized.")
+                # Instantiate client FIRST
+                discord_client = discord.Client(intents=intents, heartbeat_timeout=90)
+                # THEN register events using the instance
+                discord_client.event(on_ready); discord_client.event(on_message); logger.info("Discord client initialized.")
             except Exception as e: logger.critical(f"Discord Init Error: {e}", exc_info=True); raise
-            try: # Setup Signal Handling
-                 loop = asyncio.get_event_loop(); loop.add_signal_handler(signal.SIGTERM, lambda: asyncio.create_task(cleanup_shutdown())); loop.add_signal_handler(signal.SIGINT, lambda: asyncio.create_task(cleanup_shutdown())); logger.info("Signal handlers registered.")
+            try: loop = asyncio.get_event_loop(); loop.add_signal_handler(signal.SIGTERM, lambda: asyncio.create_task(cleanup_shutdown())); loop.add_signal_handler(signal.SIGINT, lambda: asyncio.create_task(cleanup_shutdown())); logger.info("Signal handlers registered.")
             except Exception as e: logger.error(f"Signal handler setup error: {e}")
-            # Start Bot
             logger.info(f"Starting {APP_NAME} Discord bot run loop...")
             discord_client.run(config['DISCORD_BOT_TOKEN'], log_handler=None, log_level=logging.WARNING)
             logger.info("Discord client run loop finished normally.")
-
     except discord.LoginFailure: logger.critical("Discord login failed: Invalid Token."); main_exit_code = 1
     except discord.PrivilegedIntentsRequired: logger.critical("Discord login failed: Privileged Intents missing."); main_exit_code = 1
     except pidfile.AlreadyLockedError: logger.critical(f"PID file {args.pidfile} locked unexpectedly."); main_exit_code = 1
