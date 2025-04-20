@@ -5,14 +5,17 @@
 
 ACLOCAL_AMFLAGS = -I m4
 
+# --- Explicit Default Target ---
+all:
+
 # --- Files to be installed ---
 pkgdatadir = $(datarootdir)/$(PACKAGE_NAME)
 dist_pkgdata_SCRIPTS = yui_bot.py
-dist_pkgdata_DATA = requirements.txt yui-bot.env.example LICENSE README.md
-
-# Install systemd service file if systemd support was detected by configure
+# Add the *generated* service file to pkgdata if systemd is enabled
 if HAVE_SYSTEMD
-systemdsystemunit_DATA = service/yui-bot.service
+dist_pkgdata_DATA = requirements.txt yui-bot.env.example LICENSE README.md service/yui-bot.service
+else
+dist_pkgdata_DATA = requirements.txt yui-bot.env.example LICENSE README.md
 endif
 
 # Install the Python configuration helper script to sbin
@@ -28,11 +31,16 @@ EXTRA_DIST = \
     LICENSE \
     README.md \
     configure-yui-bot.py \
-    test-project.sh  # << ADDED test script to distribution
+    test-project.sh
 
 # --- Cleanup ---
+# Add the generated service/initd files to CLEANFILES
 CLEANFILES = service/yui-bot.service \
              service/yui-bot.initd
+
+# --- Remove Install/Uninstall Hooks ---
+# install-data-hook: ; # Empty rule if needed, or just remove
+# uninstall-hook: ; # Empty rule if needed, or just remove
 
 # --- Custom Check Target ---
 check-deps:
@@ -46,17 +54,13 @@ smokecheck:
 	@echo "--- Smoke Checks Complete ---"
 
 # --- RPM Building Targets ---
-# Variables (allow override from environment)
 RPM_BUILD_DIR ?= $(HOME)/rpmbuild
 RPMBUILD ?= rpmbuild
-# Calculated paths
 RPM_SOURCES_DIR = $(RPM_BUILD_DIR)/SOURCES
 RPM_SPECS_DIR = $(RPM_BUILD_DIR)/SPECS
 RPM_SPEC_FILE = $(top_srcdir)/rpm/@PACKAGE_NAME@.spec
-RPM_SPEC_BASENAME = $(notdir $(RPM_SPEC_FILE))
 DIST_TARBALL = $(PACKAGE_TARNAME)-$(PACKAGE_VERSION).tar.gz
 
-# Target to build SRPM
 srpm: dist
 	@echo "--- Building SRPM ---"
 	$(MKDIR_P) "$(RPM_SOURCES_DIR)" "$(RPM_SPECS_DIR)"
@@ -65,10 +69,10 @@ srpm: dist
 	@echo "Copying Spec File '$(RPM_SPEC_FILE)' to $(RPM_SPECS_DIR)/"
 	cp -f "$(RPM_SPEC_FILE)" "$(RPM_SPECS_DIR)/"
 	@echo "Running $(RPMBUILD) -bs..."
-	$(RPMBUILD) -bs "$(RPM_SPECS_DIR)/$(RPM_SPEC_BASENAME)"
+	spec_basename=$$(basename "$(RPM_SPEC_FILE)"); \
+	$(RPMBUILD) -bs "$(RPM_SPECS_DIR)/$$spec_basename"
 	@echo "---------------------"; @echo "SRPM should be in $(RPM_BUILD_DIR)/SRPMS/"; @echo "---------------------"
 
-# Target to build Binary and Source RPMs
 rpm: dist
 	@echo "--- Building RPMs (Binary & Source) ---"
 	$(MKDIR_P) "$(RPM_SOURCES_DIR)" "$(RPM_SPECS_DIR)"
@@ -77,8 +81,9 @@ rpm: dist
 	@echo "Copying Spec File '$(RPM_SPEC_FILE)' to $(RPM_SPECS_DIR)/"
 	cp -f "$(RPM_SPEC_FILE)" "$(RPM_SPECS_DIR)/"
 	@echo "Running $(RPMBUILD) -ba..."
-	$(RPMBUILD) -ba "$(RPM_SPECS_DIR)/$(RPM_SPEC_BASENAME)"
+	spec_basename=$$(basename "$(RPM_SPEC_FILE)"); \
+	$(RPMBUILD) -ba "$(RPM_SPECS_DIR)/$$spec_basename"
 	@echo "---------------------"; @echo "RPMs should be in $(RPM_BUILD_DIR)/RPMS/"; @echo "SRPM should be in $(RPM_BUILD_DIR)/SRPMS/"; @echo "---------------------"
 
 # Declare phony targets
-.PHONY: check-deps rpm srpm smokecheck # << ADDED smokecheck
+.PHONY: check-deps rpm srpm smokecheck all install-data-hook uninstall-hook

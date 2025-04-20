@@ -2,22 +2,22 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # See LICENSE file for full text.
 #
-# Systemd Unit File Template for @PACKAGE_NAME@
+# Systemd Unit File Template for yui-bot
 # Processed by configure script.
 
 [Unit]
-Description=Yui Discord Bot Service (@PACKAGE_NAME@)
+Description=Yui Discord Bot Service (yui-bot)
 After=network.target
 
 [Service]
 Type=simple
-User=@installuser@
-Group=@installgroup@
-WorkingDirectory=@pkgdatadir@
+User=yui-bot
+Group=yui-bot
+WorkingDirectory=${datadir}/${PACKAGE_NAME}
 
 # --- Execution ---
-ExecStart=@PYTHON3@ @pkgdatadir@/yui_bot.py --config @envfile@ --pidfile @pidfile@ --log-level INFO
-PIDFile=@pidfile@
+ExecStart=python3 ${datadir}/${PACKAGE_NAME}/yui_bot.py --config ${prefix}/etc/yui-bot/.env --pidfile ${localstatedir}/run/yui-bot/yui-bot.pid --log-level INFO
+PIDFile=${localstatedir}/run/yui-bot/yui-bot.pid
 Restart=on-failure
 RestartSec=5s
 
@@ -27,7 +27,7 @@ Environment=PYTHONUNBUFFERED=1
 # --- Security Hardening ---
 # AmbientCapabilities=; CapabilityBoundingSet=;
 NoNewPrivileges=yes; PrivateTmp=yes; ProtectSystem=strict; ProtectHome=yes;
-ReadWritePaths=@apprundir@; #ProtectKernelTunables=yes; ProtectKernelModules=yes;
+ReadWritePaths=${localstatedir}/run/yui-bot; #ProtectKernelTunables=yes; ProtectKernelModules=yes;
 ProtectControlGroups=yes; RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6;
 RestrictNamespaces=yes; RestrictRealtime=yes; SystemCallArchitectures=native;
 SystemCallFilter=@system-service; SystemCallFilter=~@privileged @resources @raw-io @reboot @swap;

@@ -4,30 +4,30 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # See LICENSE file for full text.
 #
-# SysVinit Script Template for @PACKAGE_NAME@
+# SysVinit Script Template for yui-bot
 # Processed by configure script. Provides an example.
 
 ### BEGIN INIT INFO
-# Provides:          @PACKAGE_NAME@
+# Provides:          yui-bot
 # Required-Start:    $remote_fs $network $syslog
 # Required-Stop:     $remote_fs $network $syslog
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
-# Short-Description: Start and stop the @PACKAGE_NAME@
-# Description:       Runs the Yui Discord Bot (@PACKAGE_NAME@) as a daemon. (SysVinit Example)
+# Short-Description: Start and stop the yui-bot
+# Description:       Runs the Yui Discord Bot (yui-bot) as a daemon. (SysVinit Example)
 ### END INIT INFO
 
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
-DESC="Yui Discord Bot (@PACKAGE_NAME@)"
-NAME=@PACKAGE_NAME@
-PYTHON_EXEC=@PYTHON3@
-DAEMON_USER=@installuser@
-DAEMON_GROUP=@installgroup@
-INSTALL_DIR=@pkgdatadir@
+DESC="Yui Discord Bot (yui-bot)"
+NAME=yui-bot
+PYTHON_EXEC=python3
+DAEMON_USER=yui-bot
+DAEMON_GROUP=yui-bot
+INSTALL_DIR=${datadir}/${PACKAGE_NAME}
 DAEMON_SCRIPT="$INSTALL_DIR/yui_bot.py"
-CONFIG_FILE="@envfile@"
-PID_DIR="@apprundir@"
-PID_FILE="@pidfile@"
+CONFIG_FILE="${prefix}/etc/yui-bot/.env"
+PID_DIR="${localstatedir}/run/yui-bot"
+PID_FILE="${localstatedir}/run/yui-bot/yui-bot.pid"
 DAEMON_ARGS="--config $CONFIG_FILE --pidfile $PID_FILE --log-level INFO"
 SSD_NAME=$(basename $PYTHON_EXEC)
 
