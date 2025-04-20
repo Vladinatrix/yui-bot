@@ -5,8 +5,8 @@
 dnl Process this file with autoconf to produce a configure script.
 #
 AC_PREREQ([2.69])
-# Initialize package info (Final version)
-AC_INIT([yui-bot], [1.3.6], [stacy@guppylog.com]) # << VERSION
+# Initialize package info (Updated version for smokecheck target)
+AC_INIT([yui-bot], [1.3.7], [stacy@guppylog.com]) # << UPDATED VERSION
 AC_CONFIG_SRCDIR([yui_bot.py])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 AC_CONFIG_MACRO_DIRS([m4])
@@ -16,6 +16,7 @@ AC_PROG_INSTALL; AC_PROG_MKDIR_P
 AC_CHECK_PROG([PYTHON3], [python3], [python3], [], [/usr/bin:/usr/local/bin])
 if test "x$PYTHON3" = "x"; then AC_MSG_ERROR([python3 not found]); fi
 AC_CHECK_PROG([PIP3], [pip3], [pip3], [], [/usr/bin:/usr/local/bin])
+# if test "x$PIP3" = "x"; then AC_MSG_ERROR([pip3 not found]); fi
 AC_CHECK_PROG([GROUPADD], [groupadd], [/usr/sbin/groupadd])
 if test "x$GROUPADD" = "x"; then AC_MSG_ERROR([groupadd not found]); fi
 AC_CHECK_PROG([USERADD], [useradd], [/usr/sbin/useradd])

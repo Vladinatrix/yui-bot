@@ -43,63 +43,22 @@ Copyright (c) 2025 Guppy Girl Genetics Software.
 * `pkgconfig(systemd)`, `systemd`
 * `make`, `findutils`
 * `shadow-utils`
+* `rpmlint`, `git`, `tar`, `gzip`, `gcc` (for running `make smokecheck` or `make distcheck`)
 
 ## Build Instructions (RPM)
 
+There are two main ways to build the RPM:
+
+**Method 1: Using Make Targets (Recommended)**
+
 1.  Clone the repository or unpack the source tarball (`yui-bot-*.tar.gz`).
-2.  Run `autoreconf --install --force` in the source directory.
-3.  Run `./configure` (optionally pass flags like `--prefix=/usr`).
-4.  Run `make distcheck` to create the source tarball (`yui-bot-*.tar.gz`).
-5.  Set up your `rpmbuild` environment (`rpmdev-setuptree`).
-6.  Copy the generated tarball to `~/rpmbuild/SOURCES/`.
-7.  Copy `rpm/yui-bot.spec` to `~/rpmbuild/SPECS/`.
-8.  Run `rpmbuild -ba ~/rpmbuild/SPECS/yui-bot.spec`.
-9.  The RPM will be created in `~/rpmbuild/RPMS/noarch/`.
-
-## Installation (RPM)
-
-1.  Copy the built RPM to the target RHEL 9+ system.
-2.  Install the RPM: `sudo dnf install ./yui-bot-*.noarch.rpm`
-    *(This should install the bot, service files, config script, and pull dependencies listed in Requires if available in repos)*
-3.  **Important: Configure Secrets & Settings:**
-    * **Method A (Recommended): Run the helper script using `sudo`:**
-        ```bash
-        # Interactive mode (recommended first time)
-        sudo /usr/sbin/configure-yui-bot.py --interactive
-
-        # Or provide all required args non-interactively
-        # sudo /usr/sbin/configure-yui-bot.py --token YOUR_TOKEN --apikey YOUR_KEY [--author-id ID] [--timeout SECS] [--model NAME]
-        ```
-    * This script will guide you (prompting for values), verify your Gemini API key, let you select an available model, and create `/etc/yui-bot/.env` with the correct content, ownership (`yui-bot:yui-bot`), and permissions (`640`).
-    * **Note:** Ensure Python 3 and the required libraries (`google-generativeai`, `python-dotenv`) are installed before running the configure script if they weren't pulled in automatically by the RPM installation (see step 4).
-    * **Method B (Manual):**
-        * Copy the example: `sudo cp /etc/yui-bot/.env.example /etc/yui-bot/.env`
-        * Edit the new file: `sudo nano /etc/yui-bot/.env` (or use another editor)
-        * Add your `DISCORD_BOT_TOKEN`, `GEMINI_API_KEY`, and optional `AUTHOR_DISCORD_ID`. Set `GEMINI_MODEL_NAME` and `CONVERSATION_TIMEOUT_SECONDS` if desired.
-        * Set ownership and permissions: `sudo chown yui-bot:yui-bot /etc/yui-bot/.env && sudo chmod 640 /etc/yui-bot/.env`
-4.  **[If needed] Install Python Dependencies Manually:** If the RPM `Requires` did not cover all Python libraries (e.g., if `python3-google-generativeai` isn't in your repos), install them now:
+2.  Ensure you have the RPM build environment and prerequisites installed (see above). Run `rpmdev-setuptree` once if needed.
+3.  Run `autoreconf --install --force` in the source directory to generate the `configure` script.
+4.  Run `./configure` (optionally pass flags like `--prefix=/usr` or path overrides).
+5.  **(Optional) Run Smoke Tests:** Before building the final package, you can run checks:
     ```bash
-    sudo python3 -m pip install -r /usr/share/yui-bot/requirements.txt
+    make smokecheck
     ```
-5.  Enable and start the service:
-    ```bash
-    sudo systemctl enable yui-bot.service
-    sudo systemctl start yui-bot.service
-    ```
-
-## Usage
-
-* Invite the bot (likely named "yui-bot" in Discord) to your server.
-* Mention the bot: `@yui-bot <your question>`
-* Get help: `@yui-bot man @yui-bot` or `@yui-bot help`
-* Get man pages: `@yui-bot man <command>`
-* Give the bot a snack: `@yui-bot botsnack` (or `@yui-bot bot snack`)
-
-## Service Management
-
-* Start: `sudo systemctl start yui-bot`
-* Stop: `sudo systemctl stop yui-bot`
-* Restart: `sudo systemctl restart yui-bot`
-* Status: `sudo systemctl status yui-bot`
-* Logs: `sudo journalctl -u yui-bot -f`
-
+    This executes `test-project.sh` which performs syntax checks, attempts prerequisite installs via `sudo dnf`, runs `make distcheck`, and lints the spec file. Review its output carefully.
+6.  Run `make rpm` to build both the binary RPM and the source RPM (SRPM).
+    * Alternatively, run `make srpm` to build
