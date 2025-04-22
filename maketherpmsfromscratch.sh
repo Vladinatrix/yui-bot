@@ -16,9 +16,11 @@ REQUIRED_COMMANDS=(
     "autoconf"
     "automake"
     "make"
-    "gcc" # Often needed by configure checks
+ # Often needed by configure checks
+    "gcc"
     "rpmbuild"
-    "git" # Needed by autoreconf sometimes if using git versions
+# Needed by autoreconf sometimes if using git versions
+    "git"
     "tar"
     "gzip"
     "sed"
@@ -37,8 +39,10 @@ ask_confirm() {
     while true; do
         read -p "$prompt_msg [y/N]: " yn
         case $yn in
-            [Yy]* ) return 0;; # Success (Yes)
-            [Nn]* | "" ) return 1;; # Failure (No or Enter)
+# Success (Yes)
+            [Yy]* ) return 0;;
+# Failure (No or Enter)
+            [Nn]* | "" ) return 1;;
             * ) echo "Please answer yes (y) or no (n).";;
         esac
     done
@@ -82,7 +86,7 @@ check_prerequisites_and_confirm() {
         exit 1
     fi
 
-    msg_pass "All prerequisite checks passed." # Corrected here
+    msg_pass "All prerequisite checks passed."
     echo "This script will perform the following main steps:"
     echo "  1. Clean previous build artifacts ('make distclean')."
     echo "  2. Regenerate build system ('autoreconf -fi')."
@@ -94,7 +98,8 @@ check_prerequisites_and_confirm() {
 
     if ! ask_confirm "Do you want to proceed with these steps?"; then
         msg_info "User chose not to proceed. Exiting."
-        exit 0 # Graceful exit if user bails out
+        exit 0
+# Graceful exit if user bails out
     fi
     msg_info "Proceeding with build..."
 }
@@ -112,7 +117,7 @@ echo "============================================="
 # --- Step 1: Clean ---
 msg_info "Step 1: Cleaning previous build artifacts ('make distclean')..."
 if make distclean; then
-    msg_pass "Cleanup successful." # Corrected here
+    msg_pass "Cleanup successful."
 else
     # If make fails here, it might be because Makefile doesn't exist yet, which is okay after distclean
     msg_info "Cleanup command finished (ignore 'No rule to make target' if it occurred)."
@@ -122,7 +127,7 @@ echo "---------------------------------------------"
 # --- Step 2: Regenerate Build System ---
 msg_info "Step 2: Regenerating build system ('autoreconf -fi')..."
 if autoreconf --install --force --verbose; then
-    msg_pass "autoreconf successful." # Corrected here
+    msg_pass "autoreconf successful."
 else
     msg_error "autoreconf failed. Please check configure.ac/Makefile.am and output."
     exit 1
@@ -132,7 +137,7 @@ echo "---------------------------------------------"
 # --- Step 3: Configure ---
 msg_info "Step 3: Running configure script (using ${CONFIGURE_FLAGS})..."
 if ./configure ${CONFIGURE_FLAGS}; then
-    msg_pass "Configure successful." # Corrected here
+    msg_pass "Configure successful."
     msg_info "Configure output finished. Please carefully review the 'Paths' summary printed by configure."
 else
     msg_error "Configure failed. Please check config.log and configure output."
@@ -153,7 +158,7 @@ if ! ask_confirm "VERIFY: Do 'WorkingDirectory' and 'ExecStart' above contain co
     msg_error "Please fix configure.ac or service/yui-bot.service.in, then re-run this script."
     exit 1
 fi
-msg_pass "User verification passed." # Corrected here
+msg_pass "User verification passed."
 echo "---------------------------------------------"
 
 # --- Step 5: Update RPM Release Number ---
@@ -185,11 +190,13 @@ else
         # Basic validation: check if it's a number
         if ! [[ "$NEW_RELEASE_NUM" =~ ^[0-9]+$ ]]; then
             echo "Invalid input. Please enter a number."
-            NEW_RELEASE_NUM="" # Force loop to repeat
+# Force loop to repeat
+            NEW_RELEASE_NUM=""
         elif [[ "$NEW_RELEASE_NUM" -le "$CURRENT_RELEASE_NUM" ]]; then
              ask_confirm "WARN: New release ($NEW_RELEASE_NUM) is not greater than current ($CURRENT_RELEASE_NUM). Continue anyway?"
              if [[ $? -ne 0 ]]; then
-                 NEW_RELEASE_NUM="" # Force loop to repeat
+# Force loop to repeat
+                 NEW_RELEASE_NUM=""
              fi
         fi
     done
@@ -206,8 +213,9 @@ else
         # Optional: restore backup? mv "$SPEC_FILE.rpmbuild.bak" "$SPEC_FILE"
         exit 1
     fi
-    rm -f "$SPEC_FILE.rpmbuild.bak" # Clean up backup on success
-    msg_pass "Release number updated in $SPEC_FILE to $NEW_RELEASE_NUM." # Corrected here
+# Clean up backup on success
+    rm -f "$SPEC_FILE.rpmbuild.bak"
+    msg_pass "Release number updated in $SPEC_FILE to $NEW_RELEASE_NUM."
     msg_info "NOTE: Remember to manually add a corresponding %changelog entry later."
 fi
 echo "---------------------------------------------"
@@ -216,12 +224,25 @@ echo "---------------------------------------------"
 msg_info "Step 6: Building the RPM package with 'make rpm'..."
 # Run make rpm. Output will go to stdout/stderr.
 if make rpm; then
-    msg_pass "RPM build completed successfully!" # Corrected here
+    msg_pass "RPM build completed successfully!"
     msg_info "Output RPMs should be located in your rpmbuild directory ($RPMBUILD_DIR/RPMS/noarch and $RPMBUILD_DIR/SRPMS)."
 else
     msg_error "'make rpm' failed. Please check the build output above for errors."
     exit 1
 fi
 echo "============================================="
-msg_pass "Script finished." # Corrected here
+
+# --- Final Reminder ---
+msg_info "Build complete. To install and run:"
+msg_info " 1. Transfer the RPM from $RPMBUILD_DIR/RPMS/noarch/ to your target machine."
+msg_info " 2. sudo dnf install ./yui-bot-*.rpm"
+msg_info " 3. sudo python3 -m pip install -r /usr/share/yui-bot/requirements.txt"
+msg_info " 4. sudo /usr/sbin/configure-yui-bot.py  (Enter API keys)"
+msg_info " 5. sudo systemctl enable yui-bot.service  (For persistence across reboots)"
+msg_info " 6. sudo systemctl start yui-bot.service"
+msg_info " 7. sudo systemctl status yui-bot.service"
+msg_info " 8. sudo journalctl -u yui-bot.service -f  (To monitor logs)"
+echo "============================================="
+
+msg_pass "Script finished."
 exit 0

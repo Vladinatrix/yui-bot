@@ -14,11 +14,12 @@
 Name:           %{app_name}
 Version:        1.3.17
 # Increment release number for packaging change (dependency handling)
-Release:        8%{?dist}
+# Assuming 8 based on last successful build script run
+Release:        9%{?dist}
 Summary:        Discord bot (Yui) interfacing with Google Gemini AI
 License:        BSD-2-Clause
 # Project homepage URL
-URL:            https://guppylog.com/software/yui-bot
+URL:            https://github.com/Vladinatrix/yui-bot
 Source0:        %{name}-%{version}.tar.gz
 
 BuildArch:      noarch
@@ -28,7 +29,8 @@ BuildRequires:  autoconf automake
 BuildRequires:  python3-devel python3-pip
 BuildRequires:  pkgconfig(systemd) systemd
 BuildRequires:  findutils make
-BuildRequires:  shadow-utils
+# Added libtool dep just in case
+BuildRequires:  shadow-utils libtool-ltdl-devel
 # For smokecheck/distcheck if run during build
 BuildRequires:  rpmlint git bash
 
@@ -39,7 +41,6 @@ Requires:       systemd-libs
 Requires(pre):  shadow-utils
 Requires(post): shadow-utils
 Requires(postun): shadow-utils
-# Removed Requires for python3-discord.py, python3-dotenv, etc.
 
 %description
 A Discord bot named Yui that uses the Google Gemini AI API to respond
@@ -92,6 +93,8 @@ exit 0
 
 %post -p /bin/sh
 # Handle systemd service activation post-install
+# Note: %systemd_post automatically calls 'systemctl daemon-reload' on install/upgrade
+# and 'systemctl preset' if applicable. It does NOT start or enable by default.
 %systemd_post %{name}.service
 # Provide post-install instructions
 echo "----------------------------------------------------------------------"
@@ -105,15 +108,22 @@ echo "     sudo %{_sbindir}/%{app_config_script}"
 echo "     (This validates keys, selects model, creates '%{app_confdir}/.env')"
 echo "  3. OR manually create/edit '%{app_confdir}/.env' based on the example,"
 echo "     then ensure ownership '%{app_user}:%{app_group}' and permissions '640'."
-echo "  4. Then, start the service: 'sudo systemctl start %{name}.service'"
+echo "  4. Then, start the service for the current session:"
+echo "     sudo systemctl start %{name}.service"
+echo "  5. To make the service start automatically on boot, run:"
+echo "     sudo systemctl enable %{name}.service"
 echo "----------------------------------------------------------------------"
 
 %preun -p /bin/sh
 # Handle systemd service deactivation pre-uninstall
+# Note: %systemd_preun automatically calls 'systemctl stop', 'systemctl disable',
+# and 'systemctl daemon-reload' before package removal.
 %systemd_preun %{name}.service
 
 %postun -p /bin/sh
 # Handle systemd service cleanup post-uninstall (if upgrading)
+# Note: %systemd_postun_with_restart automatically calls 'systemctl daemon-reload'
+# and conditionally 'systemctl try-restart' on upgrade.
 %systemd_postun_with_restart %{name}.service
 # Remove user/group only on final package removal ($1 == 0)
 if [ $1 -eq 0 ] ; then
@@ -143,6 +153,10 @@ exit 0
 
 
 %changelog
+* Tue Apr 22 2025 Wynona Stacy Lockwood <stacy@guppylog.com> - 1.3.17-8
+- build: Fix path expansion in configure.ac for service file generation.
+* Mon Apr 21 2025 Wynona Stacy Lockwood <stacy@guppylog.com> - 1.3.17-7
+- build: Increment release for spec file fix attempt.
 * Mon Apr 21 2025 Wynona Stacy Lockwood <stacy@guppylog.com> - 1.3.17-6
 - build: Remove python library Requires; rely on pip install from requirements.txt.
 * Sun Apr 20 2025 Wynona Stacy Lockwood <stacy@guppylog.com> - 1.3.17-5
@@ -166,7 +180,7 @@ exit 0
 * Sun Apr 20 2025 Wynona Stacy Lockwood <stacy@guppylog.com> - 1.3.12-1
 - build: Fix non-POSIX var/comment and systemd dir var in Makefile.am.
 * Sun Apr 20 2025 Wynona Stacy Lockwood <stacy@guppylog.com> - 1.3.11-1
-- build: Fix unportable '#' comments inside Makefile.am rpm/srpm rules.
+- build: Fix unportable comments inside Makefile.am rpm/srpm rules.
 * Sun Apr 20 2025 Wynona Stacy Lockwood <stacy@guppylog.com> - 1.3.10-1
 - build: Use shell echo/exit instead of AC_MSG_FAILURE in configure.ac.
 * Sun Apr 20 2025 Wynona Stacy Lockwood <stacy@guppylog.com> - 1.3.9-1
