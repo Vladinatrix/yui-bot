@@ -1,0 +1,85 @@
+here are the step-by-step instructions for installing the yui-bot package from the RPM file you've built, assuming you are on a target RHEL 9 (or compatible, like Rocky/AlmaLinux 9) system:
+Prerequisites on Target System:
+A RHEL 9 or compatible system.
+Network access (for dnf to download dependencies).
+A user account with sudo privileges.
+The built yui-bot-*.noarch.rpm file.
+Installation Steps:
+Transfer RPM to Target System:
+Copy the yui-bot-*.noarch.rpm file you built (e.g., yui-bot-1.3.17-5.el9.noarch.rpm) to the target RHEL 9 system. You can use tools like scp, USB drive, etc. Place it somewhere accessible, like your user's home directory.
+Install the RPM Package:
+Open a terminal on the target system.
+Navigate to the directory where you copied the RPM file.
+Run the installation command using dnf. Replace yui-bot-*.noarch.rpm with the actual filename:
+sudo dnf install ./yui-bot-*.noarch.rpm
+Use code with caution.
+Bash
+Enter your sudo password if prompted.
+dnf will analyze the RPM's dependencies (Requires: tags in the spec file) and automatically download and install any missing required packages (like python3, python3-discord.py, python3-dotenv, etc.) from your configured repositories. Confirm any prompts from dnf.
+During the installation, the %pre scriptlet will run, creating the yui-bot user and group.
+After the files are copied, the %post scriptlet will run, enabling the systemd service and printing important configuration instructions. Pay attention to these instructions.
+Verify Initial Installation:
+Check if the user and group were created:
+id yui-bot
+getent group yui-bot
+Use code with caution.
+Bash
+(These should succeed and show information about the user/group).
+Check if key files/directories exist:
+ls -ld /etc/yui-bot /var/run/yui-bot /usr/share/yui-bot /usr/sbin/configure-yui-bot.py /usr/lib/systemd/system/yui-bot.service
+Use code with caution.
+Bash
+Run the Configuration Helper:
+As the post-install instructions state, you must configure the bot before starting it. Use the provided helper script:
+sudo /usr/sbin/configure-yui-bot.py
+Use code with caution.
+Bash
+The script requires sudo because it needs to:
+Read the service user/group information.
+Write the configuration file to /etc/yui-bot/.env.
+Set the correct ownership (yui-bot:yui-bot) and permissions (640) on /etc/yui-bot/.env.
+Follow the interactive prompts:
+Enter your Discord Bot Token.
+Enter your Google Gemini API Key. (The script will verify this key).
+Optionally enter your Author Discord ID.
+Optionally enter a Conversation Timeout.
+Select the desired Gemini Model from the validated list.
+Confirm when asked to write the configuration.
+(Alternatively, you can use non-interactive flags like --token YOUR_TOKEN --apikey YOUR_KEY -y, etc., if preferred).
+Verify Configuration File:
+Check that the .env file was created correctly:
+sudo ls -l /etc/yui-bot/.env
+Use code with caution.
+Bash
+The output should show the file owned by yui-bot yui-bot with permissions -rw-r----- (640).
+Start and Enable the Service:
+Now that configuration is complete, start the bot service:
+sudo systemctl start yui-bot.service
+Use code with caution.
+Bash
+Enable the service to start automatically on system boot:
+sudo systemctl enable yui-bot.service
+Use code with caution.
+Bash
+Check Service Status:
+Verify that the service started correctly:
+sudo systemctl status yui-bot.service
+Use code with caution.
+Bash
+Look for Active: active (running). If it failed, the status and logs will provide clues.
+Monitor Logs (Optional but Recommended):
+Check the service logs for any errors during startup or operation:
+sudo journalctl -u yui-bot.service
+Use code with caution.
+Bash
+To follow logs in real-time:
+sudo journalctl -f -u yui-bot.service
+Use code with caution.
+Bash
+Look for lines indicating successful login to Discord and readiness.
+Test in Discord:
+Go to a Discord server where the bot has been added.
+Mention the bot (@yui-bot) followed by a prompt (e.g., @yui-bot hello!).
+Try the specific commands: @yui-bot help, @yui-bot man @yui-bot, @yui-bot man ls, @yui-bot botsnack.
+You have now installed, configured, started, and verified the yui-bot service using the RPM package.
+

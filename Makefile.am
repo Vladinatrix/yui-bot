@@ -13,9 +13,9 @@ pkgdatadir = $(datarootdir)/$(PACKAGE_NAME)
 dist_pkgdata_SCRIPTS = yui_bot.py
 # Add the *generated* service file to pkgdata if systemd is enabled
 if HAVE_SYSTEMD
-dist_pkgdata_DATA = requirements.txt yui-bot.env.example LICENSE README.md service/yui-bot.service
+dist_pkgdata_DATA = requirements.txt yui-bot.env.example service/yui-bot.service
 else
-dist_pkgdata_DATA = requirements.txt yui-bot.env.example LICENSE README.md
+dist_pkgdata_DATA = requirements.txt yui-bot.env.example
 endif
 
 # Install the Python configuration helper script to sbin

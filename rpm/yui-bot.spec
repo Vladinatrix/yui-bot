@@ -60,7 +60,6 @@ to assist with initial configuration, API key validation, and model selection.
 # Run make
 make %{?_smp_mflags}
 
-# This is the *only* %install section marker
 %install
 # Run make install - installs files based on Makefile.am respecting DESTDIR/buildroot
 %make_install
@@ -131,7 +130,7 @@ exit 0
 %attr(0644, root, root) %{app_datadir}/requirements.txt
 %attr(0644, root, root) %{app_datadir}/yui-bot.env.example
 %dir %attr(0750, %{app_user}, %{app_group}) %{app_confdir}
-%config(noreplace) %attr(0640, %{app_user}, %{app_group}) %{app_confdir}/.env
+# The actual .env file is created by user/script post-install, do not list it here.
 %attr(0644, root, root) %{app_confdir}/.env.example
 %dir %attr(0750, %{app_user}, %{app_group}) %{app_rundir}
 # List the final installed location of the systemd service file
@@ -144,13 +143,13 @@ exit 0
 * Sun Apr 20 2025 Wynona Stacy Lockwood <stacy@guppylog.com> - 1.3.17-5
 - build: Correctly remove *all* inline comments from spec file tags (Release, URL).
 * Sun Apr 20 2025 Wynona Stacy Lockwood <stacy@guppylog.com> - 1.3.17-4
-- build: Remove accidentally duplicated %install directive in spec file.
+- build: Remove accidentally duplicated percentinstall directive in spec file.
 * Sun Apr 20 2025 Wynona Stacy Lockwood <stacy@guppylog.com> - 1.3.17-3
 - build: Move all inline comments in spec file tags to separate lines (Incomplete).
 * Sun Apr 20 2025 Wynona Stacy Lockwood <stacy@guppylog.com> - 1.3.17-2
 - build: Move Version tag comment in spec file to its own line (Missed others).
 * Sun Apr 20 2025 Wynona Stacy Lockwood <stacy@guppylog.com> - 1.3.17-1
-- build: Install systemd file to pkgdatadir via Makefile.am, move in spec %install.
+- build: Install systemd file to pkgdatadir via Makefile.am, move in spec percentinstall.
 * Sun Apr 20 2025 Wynona Stacy Lockwood <stacy@guppylog.com> - 1.3.16-1
 - build: Use install/uninstall hooks for systemd file to respect DESTDIR (Failed).
 * Sun Apr 20 2025 Wynona Stacy Lockwood <stacy@guppylog.com> - 1.3.15-1

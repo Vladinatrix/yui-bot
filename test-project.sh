@@ -195,10 +195,69 @@ check_specfile() {
 # --- Configuration Script Basic Checks ---
 check_config_script() {
      log_info "Performing basic checks on configuration script ($CONFIG_SCRIPT)..."
-     if python3 "$CONFIG_SCRIPT" --help > /dev/null; then
-         log_pass "$CONFIG_SCRIPT --help executes successfully."
+
+     # --- Ensure User/Group Exist for Test ---
+     log_info "Ensuring prerequisite user/group 'yui-bot' exists for test..."
+     local CREATE_FAILED=0
+     # Temporarily disable exit on error for checks and potential sudo commands
+     set +e
+
+     # Check and create group if needed
+     getent group yui-bot > /dev/null
+     if [ $? -ne 0 ]; then
+         log_info "Group 'yui-bot' not found, attempting creation..."
+         sudo groupadd -r yui-bot
+         if [ $? -ne 0 ]; then
+             log_fail "Failed to create group 'yui-bot' using sudo."
+             CREATE_FAILED=1
+         else
+              log_pass "Successfully created group 'yui-bot' for test."
+         fi
      else
-         log_fail "$CONFIG_SCRIPT --help failed to execute."
+          log_info "Group 'yui-bot' already exists."
+     fi
+
+     # Check and create user if needed (only if group step didn't fail)
+     if [ $CREATE_FAILED -eq 0 ]; then
+         getent passwd yui-bot > /dev/null
+         if [ $? -ne 0 ]; then
+             log_info "User 'yui-bot' not found, attempting creation..."
+             # Use minimal options for system user, similar to RPM %pre
+             # No explicit home directory creation (-d) needed with -r usually
+             sudo useradd -r -g yui-bot -s /sbin/nologin -c "Yui Bot Test Account" yui-bot
+             if [ $? -ne 0 ]; then
+                  log_fail "Failed to create user 'yui-bot' using sudo."
+                  CREATE_FAILED=1
+             else
+                  log_pass "Successfully created user 'yui-bot' for test."
+             fi
+         else
+             log_info "User 'yui-bot' already exists."
+         fi
+     fi
+
+     set -e # Re-enable exit on error
+
+     if [ $CREATE_FAILED -ne 0 ]; then
+          log_fail "Could not ensure user/group prerequisites for config script test."
+          TEST_FAILURES=$((TEST_FAILURES + 1))
+          return # Skip the actual test run if creation failed
+     fi
+     # --- End User/Group Creation ---
+
+
+     # --- Run the actual test WITH sudo ---
+     log_info "Running config script check with sudo..."
+     set +e # Disable exit on error for the test command itself
+     sudo python3 "$CONFIG_SCRIPT" --help > /dev/null 2>&1
+     local HELP_EXIT_CODE=$?
+     set -e # Re-enable exit on error
+
+     if [ $HELP_EXIT_CODE -eq 0 ]; then
+         log_pass "$CONFIG_SCRIPT --help executes successfully with sudo."
+     else
+         # Any non-zero exit code is now a failure, as prerequisites *should* be met
+         log_fail "$CONFIG_SCRIPT --help failed to execute with sudo (Exit Code: $HELP_EXIT_CODE)."
          TEST_FAILURES=$((TEST_FAILURES + 1))
      fi
 }
@@ -217,7 +276,7 @@ echo "====================================="
 check_specfile
 echo "====================================="
 
-check_config_script
+check_config_script # This function now handles sudo and user/group creation
 echo "====================================="
 
 # --- Final Summary ---
