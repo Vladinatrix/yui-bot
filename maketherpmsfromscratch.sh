@@ -81,7 +81,7 @@ check_prerequisites_and_confirm() {
         exit 1
     fi
 
-    msg_success "All prerequisite checks passed."
+    msg_pass "All prerequisite checks passed."
     echo "This script will perform the following main steps:"
     echo "  1. Clean previous build artifacts ('make distclean')."
     echo "  2. Regenerate build system ('autoreconf -fi')."
