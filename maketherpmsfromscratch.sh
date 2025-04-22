@@ -3,6 +3,7 @@
 # maketherpmsfromscratch.sh
 # Automates the RPM build process for yui-bot from a clean source state.
 # Run this script from the root of the extracted source directory.
+# Assumes build tools and dependencies are installed, and rpmdev-setuptree ran.
 
 # Exit on error, treat unset variables as error, prevent pipeline errors masking
 set -euo pipefail
@@ -29,8 +30,8 @@ RPMBUILD_DIR="$HOME/rpmbuild"
 # --- Helper Functions ---
 msg_info() { echo "[INFO] $1"; }
 msg_pass() { echo "[PASS] $1"; }
-msg_fail() { echo "[FAIL] $1" >&2; } # Changed to >&2 for errors
-msg_error() { echo "[ERROR] $1" >&2; } # Changed to >&2 for errors
+msg_fail() { echo "[FAIL] $1" >&2; }
+msg_error() { echo "[ERROR] $1" >&2; }
 ask_confirm() {
     local prompt_msg="$1"
     while true; do
@@ -81,7 +82,7 @@ check_prerequisites_and_confirm() {
         exit 1
     fi
 
-    msg_pass "All prerequisite checks passed."
+    msg_pass "All prerequisite checks passed." # Corrected here
     echo "This script will perform the following main steps:"
     echo "  1. Clean previous build artifacts ('make distclean')."
     echo "  2. Regenerate build system ('autoreconf -fi')."
@@ -111,7 +112,7 @@ echo "============================================="
 # --- Step 1: Clean ---
 msg_info "Step 1: Cleaning previous build artifacts ('make distclean')..."
 if make distclean; then
-    msg_success "Cleanup successful."
+    msg_pass "Cleanup successful." # Corrected here
 else
     # If make fails here, it might be because Makefile doesn't exist yet, which is okay after distclean
     msg_info "Cleanup command finished (ignore 'No rule to make target' if it occurred)."
@@ -121,7 +122,7 @@ echo "---------------------------------------------"
 # --- Step 2: Regenerate Build System ---
 msg_info "Step 2: Regenerating build system ('autoreconf -fi')..."
 if autoreconf --install --force --verbose; then
-    msg_success "autoreconf successful."
+    msg_pass "autoreconf successful." # Corrected here
 else
     msg_error "autoreconf failed. Please check configure.ac/Makefile.am and output."
     exit 1
@@ -131,7 +132,7 @@ echo "---------------------------------------------"
 # --- Step 3: Configure ---
 msg_info "Step 3: Running configure script (using ${CONFIGURE_FLAGS})..."
 if ./configure ${CONFIGURE_FLAGS}; then
-    msg_success "Configure successful."
+    msg_pass "Configure successful." # Corrected here
     msg_info "Configure output finished. Please carefully review the 'Paths' summary printed by configure."
 else
     msg_error "Configure failed. Please check config.log and configure output."
@@ -152,7 +153,7 @@ if ! ask_confirm "VERIFY: Do 'WorkingDirectory' and 'ExecStart' above contain co
     msg_error "Please fix configure.ac or service/yui-bot.service.in, then re-run this script."
     exit 1
 fi
-msg_success "User verification passed."
+msg_pass "User verification passed." # Corrected here
 echo "---------------------------------------------"
 
 # --- Step 5: Update RPM Release Number ---
@@ -206,7 +207,7 @@ else
         exit 1
     fi
     rm -f "$SPEC_FILE.rpmbuild.bak" # Clean up backup on success
-    msg_success "Release number updated in $SPEC_FILE to $NEW_RELEASE_NUM."
+    msg_pass "Release number updated in $SPEC_FILE to $NEW_RELEASE_NUM." # Corrected here
     msg_info "NOTE: Remember to manually add a corresponding %changelog entry later."
 fi
 echo "---------------------------------------------"
@@ -215,12 +216,12 @@ echo "---------------------------------------------"
 msg_info "Step 6: Building the RPM package with 'make rpm'..."
 # Run make rpm. Output will go to stdout/stderr.
 if make rpm; then
-    msg_success "RPM build completed successfully!"
+    msg_pass "RPM build completed successfully!" # Corrected here
     msg_info "Output RPMs should be located in your rpmbuild directory ($RPMBUILD_DIR/RPMS/noarch and $RPMBUILD_DIR/SRPMS)."
 else
     msg_error "'make rpm' failed. Please check the build output above for errors."
     exit 1
 fi
 echo "============================================="
-msg_success "Script finished."
+msg_pass "Script finished." # Corrected here
 exit 0

@@ -13,24 +13,32 @@ After=network.target
 Type=simple
 User=yui-bot
 Group=yui-bot
-WorkingDirectory=${datarootdir}/yui-bot
+WorkingDirectory=/usr/share/yui-bot
 
 # --- Execution ---
-ExecStart=python3 ${datarootdir}/yui-bot/yui_bot.py --config /usr/local/etc/yui-bot/.env --pidfile /usr/local/var/run/yui-bot/yui-bot.pid --log-level INFO
-PIDFile=/usr/local/var/run/yui-bot/yui-bot.pid
+ExecStart=python3 /usr/share/yui-bot/yui_bot.py --config /etc/yui-bot/.env --pidfile /var/run/yui-bot/yui-bot.pid --log-level INFO
+PIDFile=/var/run/yui-bot/yui-bot.pid
 Restart=on-failure
 RestartSec=5s
 
 # --- Environment ---
 Environment=PYTHONUNBUFFERED=1
 
-# --- Security Hardening ---
-# AmbientCapabilities=; CapabilityBoundingSet=;
-NoNewPrivileges=yes; PrivateTmp=yes; ProtectSystem=strict; ProtectHome=yes;
-ReadWritePaths=${prefix}/var/run/yui-bot; #ProtectKernelTunables=yes; ProtectKernelModules=yes;
-ProtectControlGroups=yes; RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6;
-RestrictNamespaces=yes; RestrictRealtime=yes; SystemCallArchitectures=native;
-SystemCallFilter=@system-service; SystemCallFilter=~@privileged @resources @raw-io @reboot @swap;
+# --- Security Hardening (One directive per line) ---
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/run/yui-bot
+# ProtectKernelTunables=yes
+# ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=yes
+RestrictRealtime=yes
+SystemCallArchitectures=native
+# Combine SystemCallFilter rules (adjust if needed)
+SystemCallFilter=@system-service ~@privileged ~@resources ~@raw-io ~@reboot ~@swap
 
 StandardOutput=journal
 StandardError=journal

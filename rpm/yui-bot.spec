@@ -14,7 +14,7 @@
 Name:           %{app_name}
 Version:        1.3.17
 # Increment release number for packaging change (dependency handling)
-Release:        7%{?dist}
+Release:        8%{?dist}
 Summary:        Discord bot (Yui) interfacing with Google Gemini AI
 License:        BSD-2-Clause
 # Project homepage URL

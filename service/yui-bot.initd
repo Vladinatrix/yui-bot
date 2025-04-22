@@ -23,11 +23,11 @@ NAME=yui-bot
 PYTHON_EXEC=python3
 DAEMON_USER=yui-bot
 DAEMON_GROUP=yui-bot
-INSTALL_DIR=${datarootdir}/yui-bot
+INSTALL_DIR=@pkgdatadir@
 DAEMON_SCRIPT="$INSTALL_DIR/yui_bot.py"
-CONFIG_FILE="/usr/local/etc/yui-bot/.env"
-PID_DIR="${prefix}/var/run/yui-bot"
-PID_FILE="/usr/local/var/run/yui-bot/yui-bot.pid"
+CONFIG_FILE="@envfile@"
+PID_DIR="@apprundir@"
+PID_FILE="@pidfile@"
 DAEMON_ARGS="--config $CONFIG_FILE --pidfile $PID_FILE --log-level INFO"
 SSD_NAME=$(basename $PYTHON_EXEC)
 
