@@ -13,8 +13,8 @@
 
 Name:           %{app_name}
 Version:        1.3.17
-# Package release number ( bumped for spec file fixes )
-Release:        5%{?dist}
+# Increment release number for packaging change (dependency handling)
+Release:        7%{?dist}
 Summary:        Discord bot (Yui) interfacing with Google Gemini AI
 License:        BSD-2-Clause
 # Project homepage URL
@@ -33,16 +33,13 @@ BuildRequires:  shadow-utils
 BuildRequires:  rpmlint git bash
 
 # Runtime dependencies
+# NOTE: Specific python library dependencies are handled via pip post-install
 Requires:       python3 >= 3.8
 Requires:       systemd-libs
 Requires(pre):  shadow-utils
 Requires(post): shadow-utils
 Requires(postun): shadow-utils
-Requires:       python3-google-generativeai >= 0.5.0
-Requires:       python3-dotenv >= 1.0.1
-Requires:       python3-pidfile >= 3.0.0
-Requires:       python3-psutil >= 5.9.0
-Requires:       python3-discord.py >= 2.3.2
+# Removed Requires for python3-discord.py, python3-dotenv, etc.
 
 %description
 A Discord bot named Yui that uses the Google Gemini AI API to respond
@@ -50,6 +47,10 @@ to user prompts, fetch man pages, and maintain limited conversation
 history. Includes systemd integration for running as a service on RHEL 9+.
 Also includes a Python helper script (%{_sbindir}/%{app_config_script})
 to assist with initial configuration, API key validation, and model selection.
+
+Python dependencies (discord.py, google-generativeai, python-dotenv,
+python-pidfile, psutil) must be installed separately using pip after
+installing this RPM package (see post-install instructions).
 
 %prep
 %autosetup -n %{name}-%{version} -p1
@@ -95,13 +96,15 @@ exit 0
 # Provide post-install instructions
 echo "----------------------------------------------------------------------"
 echo " yui-bot has been installed."
-echo " IMPORTANT: You must configure API keys before starting the service."
-echo "  1. Run 'sudo %{_sbindir}/%{app_config_script}' (interactive or with args)"
-echo "     to validate keys, select model, and create '%{app_confdir}/.env'."
-echo "  2. OR manually create/edit '%{app_confdir}/.env' based on the example,"
+echo " IMPORTANT: You must configure API keys AND install Python dependencies"
+echo "            before starting the service."
+echo "  1. Install required Python libraries:"
+echo "     sudo python3 -m pip install -r %{app_datadir}/requirements.txt"
+echo "  2. Run the configuration helper:"
+echo "     sudo %{_sbindir}/%{app_config_script}"
+echo "     (This validates keys, selects model, creates '%{app_confdir}/.env')"
+echo "  3. OR manually create/edit '%{app_confdir}/.env' based on the example,"
 echo "     then ensure ownership '%{app_user}:%{app_group}' and permissions '640'."
-echo "  3. Ensure Python dependencies are met (check Requires section in spec or"
-echo "     run 'sudo python3 -m pip install -r %{app_datadir}/requirements.txt')."
 echo "  4. Then, start the service: 'sudo systemctl start %{name}.service'"
 echo "----------------------------------------------------------------------"
 
@@ -140,16 +143,18 @@ exit 0
 
 
 %changelog
+* Mon Apr 21 2025 Wynona Stacy Lockwood <stacy@guppylog.com> - 1.3.17-6
+- build: Remove python library Requires; rely on pip install from requirements.txt.
 * Sun Apr 20 2025 Wynona Stacy Lockwood <stacy@guppylog.com> - 1.3.17-5
 - build: Correctly remove *all* inline comments from spec file tags (Release, URL).
 * Sun Apr 20 2025 Wynona Stacy Lockwood <stacy@guppylog.com> - 1.3.17-4
-- build: Remove accidentally duplicated percentinstall directive in spec file.
+- build: Remove accidentally duplicated install directive in spec file.
 * Sun Apr 20 2025 Wynona Stacy Lockwood <stacy@guppylog.com> - 1.3.17-3
 - build: Move all inline comments in spec file tags to separate lines (Incomplete).
 * Sun Apr 20 2025 Wynona Stacy Lockwood <stacy@guppylog.com> - 1.3.17-2
 - build: Move Version tag comment in spec file to its own line (Missed others).
 * Sun Apr 20 2025 Wynona Stacy Lockwood <stacy@guppylog.com> - 1.3.17-1
-- build: Install systemd file to pkgdatadir via Makefile.am, move in spec percentinstall.
+- build: Install systemd file to pkgdatadir via Makefile.am, move in spec install.
 * Sun Apr 20 2025 Wynona Stacy Lockwood <stacy@guppylog.com> - 1.3.16-1
 - build: Use install/uninstall hooks for systemd file to respect DESTDIR (Failed).
 * Sun Apr 20 2025 Wynona Stacy Lockwood <stacy@guppylog.com> - 1.3.15-1

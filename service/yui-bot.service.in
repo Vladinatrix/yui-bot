@@ -13,24 +13,32 @@ After=network.target
 Type=simple
 User=@installuser@
 Group=@installgroup@
-WorkingDirectory=@pkgdatadir@
+WorkingDirectory=@FINAL_PKG_DATA_DIR@
 
 # --- Execution ---
-ExecStart=@PYTHON3@ @pkgdatadir@/yui_bot.py --config @envfile@ --pidfile @pidfile@ --log-level INFO
-PIDFile=@pidfile@
+ExecStart=@FINAL_PYTHON_EXEC@ @FINAL_PKG_DATA_DIR@/yui_bot.py --config @FINAL_ENV_FILE@ --pidfile @FINAL_PID_FILE@ --log-level INFO
+PIDFile=@FINAL_PID_FILE@
 Restart=on-failure
 RestartSec=5s
 
 # --- Environment ---
 Environment=PYTHONUNBUFFERED=1
 
-# --- Security Hardening ---
-# AmbientCapabilities=; CapabilityBoundingSet=;
-NoNewPrivileges=yes; PrivateTmp=yes; ProtectSystem=strict; ProtectHome=yes;
-ReadWritePaths=@apprundir@; #ProtectKernelTunables=yes; ProtectKernelModules=yes;
-ProtectControlGroups=yes; RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6;
-RestrictNamespaces=yes; RestrictRealtime=yes; SystemCallArchitectures=native;
-SystemCallFilter=@system-service; SystemCallFilter=~@privileged @resources @raw-io @reboot @swap;
+# --- Security Hardening (One directive per line) ---
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=@FINAL_APPRUN_DIR@
+# ProtectKernelTunables=yes
+# ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=yes
+RestrictRealtime=yes
+SystemCallArchitectures=native
+# Combine SystemCallFilter rules (adjust if needed)
+SystemCallFilter=@system-service ~@privileged ~@resources ~@raw-io ~@reboot ~@swap
 
 StandardOutput=journal
 StandardError=journal

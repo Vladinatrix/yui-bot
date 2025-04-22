@@ -45,35 +45,71 @@ AC_SUBST([installgroup])
 
 # --- Define Installation Paths ---
 AC_PREFIX_DEFAULT([/usr])
-AC_SUBST([sysconfdir])
-AC_SUBST([localstatedir])
-AC_SUBST([runstatedir])
-AC_SUBST([libdir])
-AC_SUBST([datadir])
-AC_SUBST([datarootdir])
+# Ensure standard base directories are evaluated by configure
+AC_PROG_LN_S # Needed for AC_PATH_PROG_PREPARE below
+AC_PATH_PROG_PREPARE
 
-AS_IF([test "x$prefix" = "x/usr" || test "x${prefix}" = "xNONE"],
-      [ AC_SUBST([sysconfdir], [/etc])
-        AC_SUBST([localstatedir], [/var])
-        AC_SUBST([runstatedir], ['${localstatedir}/run']) ])
+# Get the *final evaluated* values of standard directories
+final_prefix="$prefix"
+final_exec_prefix="$exec_prefix"
+final_sysconfdir="$sysconfdir"
+final_localstatedir="$localstatedir"
+final_datarootdir="$datarootdir"
+final_datadir="$datadir"
+final_libdir="$libdir"
+# Ensure runstatedir is derived correctly
+AS_IF([test "x$runstatedir" = 'x${localstatedir}/run'], [final_runstatedir="${final_localstatedir}/run"], [final_runstatedir="$runstatedir"])
 
-pkgdatadir='${datadir}/${PACKAGE_NAME}'
-AC_SUBST([pkgdatadir])
+# Override key directories if prefix is /usr (use final values)
+AS_IF([test "x$final_prefix" = "x/usr"],
+      [ final_sysconfdir="/etc"
+        final_localstatedir="/var"
+        final_runstatedir="/var/run" ])
 
-AC_ARG_WITH([rundir], [AS_HELP_STRING([--with-rundir=DIR], [Runtime dir (default: ${runstatedir}/<pkgname>)])], [apprundir="$withval"], [apprundir="${runstatedir}/${PACKAGE_NAME}"])
-AC_ARG_WITH([confdir], [AS_HELP_STRING([--with-confdir=DIR], [Config dir (default: ${sysconfdir}/<pkgname>)])], [appconfdir="$withval"], [appconfdir="${sysconfdir}/${PACKAGE_NAME}"])
-pidfile="${apprundir}/${PACKAGE_NAME}.pid"; envfile="${appconfdir}/.env"
-AC_SUBST([apprundir])
-AC_SUBST([appconfdir])
-AC_SUBST([pidfile])
-AC_SUBST([envfile])
-AC_SUBST([PYTHON3])
+# Define final application paths using the final evaluated base paths
+final_pkgdatadir="${final_datadir}/${PACKAGE_NAME}"
+AC_SUBST([FINAL_PKG_DATA_DIR], [$final_pkgdatadir]) # Use unique name for substitution
+
+# Define runtime/config directories, allowing overrides
+AC_ARG_WITH([rundir], [AS_HELP_STRING([--with-rundir=DIR], [Runtime dir (default depends on prefix)])],
+            [apprundir_value="$withval"], [apprundir_value="${final_runstatedir}/${PACKAGE_NAME}"])
+AC_ARG_WITH([confdir], [AS_HELP_STRING([--with-confdir=DIR], [Config dir (default depends on prefix)])],
+            [appconfdir_value="$withval"], [appconfdir_value="${final_sysconfdir}/${PACKAGE_NAME}"])
+
+# Expand any potential variables *within* the user-provided or default values
+eval "final_apprundir=$apprundir_value"
+eval "final_appconfdir=$appconfdir_value"
+final_pidfile="${final_apprundir}/${PACKAGE_NAME}.pid"
+final_envfile="${final_appconfdir}/.env"
+
+# Substitute the final, fully expanded paths
+AC_SUBST([FINAL_APPRUN_DIR], [$final_apprundir])
+AC_SUBST([FINAL_APPCONF_DIR], [$final_appconfdir])
+AC_SUBST([FINAL_PID_FILE], [$final_pidfile])
+AC_SUBST([FINAL_ENV_FILE], [$final_envfile])
+AC_SUBST([FINAL_PYTHON_EXEC], [$PYTHON3]) # Use unique name for python too
 
 # --- Systemd Unit Directory (Still needed for spec file) ---
-systemd_unitdir=""; if test "x$have_systemd" = "xyes"; then systemd_unitdir=`$PKG_CONFIG --variable=systemdsystemunitdir systemd`; if test "x$systemd_unitdir" = "x"; then systemd_unitdir="${libdir}/systemd/system"; fi; else systemd_unitdir="${libdir}/systemd/system"; fi
-AC_SUBST([systemd_unitdir]) # Keep this substitution for use in the spec file
+systemd_unitdir_value="";
+if test "x$have_systemd" = "xyes"; then
+    systemd_unitdir_value=`$PKG_CONFIG --variable=systemdsystemunitdir systemd`
+    if test "x$systemd_unitdir_value" = "x"; then
+        systemd_unitdir_value="${final_libdir}/systemd/system"
+    fi
+else
+    systemd_unitdir_value="${final_libdir}/systemd/system"
+fi
+eval "final_systemd_unitdir=$systemd_unitdir_value"
+AC_SUBST([FINAL_SYSTEMD_UNITDIR], [$final_systemd_unitdir]) # Use unique name
 
 # --- Output Files ---
 AC_CONFIG_FILES([ Makefile service/yui-bot.service service/yui-bot.initd ])
 AC_OUTPUT
 AC_MSG_NOTICE([ Configuration Summary: ... (output reflects chosen options) ... ])
+AC_MSG_NOTICE([ Paths (Check these carefully!): ])
+AC_MSG_NOTICE([  Pkg Data Dir: $final_pkgdatadir ])
+AC_MSG_NOTICE([  App Run Dir:  $final_apprundir ])
+AC_MSG_NOTICE([  App Conf Dir: $final_appconfdir ])
+AC_MSG_NOTICE([  PID File:     $final_pidfile ])
+AC_MSG_NOTICE([  Env File:     $final_envfile ])
+AC_MSG_NOTICE([  Python Exec:  $PYTHON3 ])

@@ -13,11 +13,11 @@ After=network.target
 Type=simple
 User=yui-bot
 Group=yui-bot
-WorkingDirectory=${datadir}/${PACKAGE_NAME}
+WorkingDirectory=${datarootdir}/yui-bot
 
 # --- Execution ---
-ExecStart=python3 ${datadir}/${PACKAGE_NAME}/yui_bot.py --config ${prefix}/etc/yui-bot/.env --pidfile ${localstatedir}/run/yui-bot/yui-bot.pid --log-level INFO
-PIDFile=${localstatedir}/run/yui-bot/yui-bot.pid
+ExecStart=python3 ${datarootdir}/yui-bot/yui_bot.py --config /usr/local/etc/yui-bot/.env --pidfile /usr/local/var/run/yui-bot/yui-bot.pid --log-level INFO
+PIDFile=/usr/local/var/run/yui-bot/yui-bot.pid
 Restart=on-failure
 RestartSec=5s
 
@@ -27,7 +27,7 @@ Environment=PYTHONUNBUFFERED=1
 # --- Security Hardening ---
 # AmbientCapabilities=; CapabilityBoundingSet=;
 NoNewPrivileges=yes; PrivateTmp=yes; ProtectSystem=strict; ProtectHome=yes;
-ReadWritePaths=${localstatedir}/run/yui-bot; #ProtectKernelTunables=yes; ProtectKernelModules=yes;
+ReadWritePaths=${prefix}/var/run/yui-bot; #ProtectKernelTunables=yes; ProtectKernelModules=yes;
 ProtectControlGroups=yes; RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6;
 RestrictNamespaces=yes; RestrictRealtime=yes; SystemCallArchitectures=native;
 SystemCallFilter=@system-service; SystemCallFilter=~@privileged @resources @raw-io @reboot @swap;
