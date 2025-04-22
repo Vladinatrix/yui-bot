@@ -1,0 +1,48 @@
+Privacy Policy for yui-bot
+Effective Date: April 01, 2025
+This Privacy Policy describes how Wynona Stacy Lockwood ("Author", "we", "us", or "our") handles information in relation to the yui-bot Discord bot service ("Service"). This policy applies when you interact with an instance of the Service operated by the Author. If you are interacting with an instance of yui-bot operated by a third party or hosted by yourself, that operator's or your own data handling practices will apply.
+The software code for yui-bot is open-source under the BSD-2-Clause license. This policy covers the operation of the Service, not the software code itself.
+1. Information We Collect
+When you interact with the yui-bot Service, the following information may be processed:
+Discord Information:
+User ID: Your unique Discord identifier.
+Channel ID: The identifier of the Discord channel where you interact with the bot.
+Server (Guild) ID: The identifier of the Discord server where the interaction occurs.
+Message Content: The text content of messages where you directly mention the bot (@yui-bot), including your prompts, questions, and commands (e.g., man, help, botsnack).
+Timestamps: The time when messages are sent and received.
+User Display Name/Nickname: Used for addressing you in responses (e.g., @User-san).
+Interaction Data:
+Conversation History: To provide context for follow-up questions, the Service temporarily stores the content of your recent prompts and the corresponding AI responses within a specific channel. This history is associated with your User ID and the Channel ID.
+AI Prompts: The specific text sent to the Google Gemini API, derived from your message content.
+AI Responses: The text received back from the Google Gemini API.
+Operational Logs:
+The Service may log operational data for monitoring, troubleshooting, and security purposes (e.g., to system logs like syslog or journald). These logs may include User IDs, Channel IDs, Server IDs, timestamps, command usage, error messages, and potentially truncated snippets of prompts or responses solely for debugging unexpected behavior.
+2. How We Use Information
+We use the information collected solely for the purpose of operating and improving the yui-bot Service:
+To Provide Functionality: To receive your prompts, process commands, interact with the Google Gemini API, and return responses to you in Discord.
+To Maintain Conversation Context: To use recent interaction history (within the configured timeout) when communicating with the Google Gemini API to allow for follow-up questions and more coherent conversations.
+To Operate and Troubleshoot: To monitor service health, diagnose technical problems, identify potential abuse, and ensure the stability and security of the Service through operational logs.
+To Apply Honorifics: To potentially use your configured Author Discord ID (if applicable on the specific instance) to apply a specific honorific in responses.
+3. Data Sharing and Third Parties
+Operating yui-bot involves interaction with essential third-party services:
+Discord: All your interactions necessarily pass through Discord's platform. Discord's own Privacy Policy governs how they handle your data. We receive information (User ID, Message Content, etc.) from Discord via their API to operate the bot.
+Google (Gemini API): To generate AI responses, the Service sends your prompt text and potentially relevant conversation history (recent user prompts and AI responses for context) to the Google Gemini API. Google's Privacy Policy and applicable AI/API terms govern how Google processes this data. We do not share your Discord User ID directly with Google as part of the prompt, only the text content and conversation flow.
+We do not sell or rent your personal information. We only share information with Discord and Google as strictly necessary for the Service to function. Operational logs are generally kept private but may be reviewed internally for troubleshooting or shared with service providers or authorities if legally required.
+4. Data Storage, Retention, and Security
+Conversation History: The conversation history used for context is stored temporarily in the Service's active memory only.
+It is cleared based on a configured time limit (typically one hour, defined by CONVERSATION_TIMEOUT_SECONDS in the bot's configuration) if no interaction occurs within that time for a specific user in a specific channel.
+All conversation history is permanently lost whenever the bot service instance is restarted or shut down.
+We do not persistently store conversation history logs beyond the temporary in-memory cache required for immediate contextual replies.
+Operational Logs: System logs containing operational data may be retained for a limited period according to standard server administration practices for troubleshooting and security analysis before being rotated or deleted.
+Security: We implement reasonable technical measures to protect the operational service instance. However, no system is perfectly secure. Users running their own instances are responsible for securing their own environment, including API keys.
+API Keys (Self-Hosted Instances): If you download and run the yui-bot software yourself, you are responsible for obtaining and securing your own Discord Bot Token and Google Gemini API Key. These are stored locally in your .env configuration file. The Author does not collect or have access to the API keys you use for your self-hosted instances.
+5. User Rights and Choices
+Given the nature of the Service and the temporary storage of conversation history:
+Access/Correction: Most data processed is directly visible to you within your Discord client. Due to the ephemeral nature of the conversation history cache, direct access or correction mechanisms are not provided.
+Deletion: Conversation history automatically expires or is deleted upon service restart. Operational logs are rotated based on system administration policies. You can typically delete your own messages within Discord, subject to server permissions and Discord's policies.
+6. Children's Privacy
+The Service is not directed to children under the age of 13 (or the relevant age of digital consent in your jurisdiction). We do not knowingly collect personal information from children. If we become aware that we have inadvertently collected such information, we will take steps to delete it.
+7. Changes to This Privacy Policy
+We may update this Privacy Policy from time to time. If we make changes, we will provide notice by revising the "Effective Date" at the top of this policy and potentially by posting a notice within the project repository or other appropriate channels. We encourage you to review this Policy periodically. Your continued use of the Service after any changes constitutes your acceptance of the new Policy.
+8. Contact Information
+If you have questions about this Privacy Policy regarding an instance operated by the Author, please contact us via the project repository at https://github.com/Vladinatrix/yui-bot/. If you are using an instance operated by someone else, please contact that operator.
