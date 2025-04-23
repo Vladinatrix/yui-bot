@@ -1,8 +1,3 @@
-# Copyright (c) 2025 Guppy Girl Genetics Software
-# SPDX-License-Identifier: BSD-2-Clause
-# See LICENSE file for full text.
-# RPM Spec file for yui-bot
-
 %global app_name yui-bot
 %global app_user yui-bot
 %global app_group yui-bot
@@ -15,7 +10,7 @@ Name:           %{app_name}
 Version:        1.3.17
 # Increment release number for packaging change (dependency handling)
 # Assuming 8 based on last successful build script run
-Release:        9%{?dist}
+Release:        11%{?dist}
 Summary:        Discord bot (Yui) interfacing with Google Gemini AI
 License:        BSD-2-Clause
 # Project homepage URL
@@ -24,7 +19,6 @@ Source0:        %{name}-%{version}.tar.gz
 
 BuildArch:      noarch
 
-# Build time dependencies
 BuildRequires:  autoconf automake
 BuildRequires:  python3-devel python3-pip
 BuildRequires:  pkgconfig(systemd) systemd
@@ -34,7 +28,6 @@ BuildRequires:  shadow-utils libtool-ltdl-devel
 # For smokecheck/distcheck if run during build
 BuildRequires:  rpmlint git bash
 
-# Runtime dependencies
 # NOTE: Specific python library dependencies are handled via pip post-install
 Requires:       python3 >= 3.8
 Requires:       systemd-libs
@@ -82,7 +75,6 @@ install -m 644 %{_builddir}/%{name}-%{version}/service/yui-bot.initd %{buildroot
 # It was installed to %{app_datadir} by 'make install' via dist_pkgdata_DATA
 install -dpm 755 %{buildroot}%{_unitdir}
 mv %{buildroot}%{app_datadir}/yui-bot.service %{buildroot}%{_unitdir}/%{name}.service
-
 
 %pre -p /bin/sh
 # Create group if it doesn't exist
@@ -150,7 +142,6 @@ exit 0
 %attr(0644, root, root) %{_unitdir}/%{name}.service
 # Python configuration script
 %attr(0755, root, root) %{_sbindir}/%{app_config_script}
-
 
 %changelog
 * Tue Apr 22 2025 Wynona Stacy Lockwood <stacy@guppylog.com> - 1.3.17-8

@@ -6,9 +6,9 @@ dnl Process this file with autoconf to produce a configure script.
 #
 AC_PREREQ([2.69])
 # Initialize package info (Updated version for spec file install fix)
-AC_INIT([yui-bot], [1.3.17], [stacy@guppylog.com]) # << UPDATED VERSION
+AC_INIT([yui-bot], [1.3.18], [stacy@guppylog.com])
 AC_CONFIG_SRCDIR([yui_bot.py])
-AM_INIT_AUTOMAKE([-Wall -Werror foreign]) # <<< Ensure this is present and correct
+AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 dnl AC_CONFIG_MACRO_DIRS([m4])
 
 # --- Checks for Programs ---
