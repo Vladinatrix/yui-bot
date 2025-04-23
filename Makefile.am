@@ -12,16 +12,20 @@ all:
 pkgdatadir = $(datarootdir)/$(PACKAGE_NAME)
 dist_pkgdata_SCRIPTS = yui_bot.py
 # Add the *generated* service file to pkgdata if systemd is enabled
+# Also list non-doc/license data files here
 if HAVE_SYSTEMD
 dist_pkgdata_DATA = requirements.txt yui-bot.env.example service/yui-bot.service
+# REMOVED: LICENSE README.md
 else
 dist_pkgdata_DATA = requirements.txt yui-bot.env.example
+# REMOVED: LICENSE README.md
 endif
 
 # Install the Python configuration helper script to sbin
 sbin_SCRIPTS = configure-yui-bot.py
 
 # --- Files included in dist tarball ---
+# LICENSE and README.md are still needed in EXTRA_DIST for the tarball
 EXTRA_DIST = \
     configure.ac \
     Makefile.am \
@@ -31,7 +35,11 @@ EXTRA_DIST = \
     LICENSE \
     README.md \
     configure-yui-bot.py \
-    test-project.sh
+    test-project.sh \
+    INSTALL-howto.txt \
+    privacypolicy.txt \
+    TermsOfService.txt \
+    maketherpmsfromscratch.sh
 
 # --- Cleanup ---
 CLEANFILES = service/yui-bot.service \
@@ -43,7 +51,7 @@ check-deps:
 	@$(PIP3) install --dry-run -r $(srcdir)/requirements.txt
 
 # --- Custom Smoke Check Target ---
-smokecheck:
+smokecheck: all
 	@echo "--- Running Project Smoke Checks (Syntax, Build, Lint) ---"
 	$(SHELL) $(top_srcdir)/test-project.sh
 	@echo "--- Smoke Checks Complete ---"

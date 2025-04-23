@@ -13,32 +13,34 @@ After=network.target
 Type=simple
 User=@installuser@
 Group=@installgroup@
-WorkingDirectory=@FINAL_PKG_DATA_DIR@
+WorkingDirectory=@pkgdatadir@
+
+# Let systemd manage the runtime directory under /run
+RuntimeDirectory=%n # %n expands to the service name (yui-bot)
+RuntimeDirectoryMode=0750
+PIDFile=@pidfile@ # PIDFile path now uses the managed RuntimeDirectory
 
 # --- Execution ---
-ExecStart=@FINAL_PYTHON_EXEC@ @FINAL_PKG_DATA_DIR@/yui_bot.py --config @FINAL_ENV_FILE@ --pidfile @FINAL_PID_FILE@ --log-level INFO
-PIDFile=@FINAL_PID_FILE@
+ExecStart=@PYTHON3@ @pkgdatadir@/yui_bot.py --config @envfile@ --pidfile @pidfile@ --log-level INFO
 Restart=on-failure
 RestartSec=5s
 
 # --- Environment ---
 Environment=PYTHONUNBUFFERED=1
 
-# --- Security Hardening (One directive per line) ---
+# --- Security Hardening (Split for readability) ---
 NoNewPrivileges=yes
 PrivateTmp=yes
 ProtectSystem=strict
 ProtectHome=yes
-ReadWritePaths=@FINAL_APPRUN_DIR@
-# ProtectKernelTunables=yes
-# ProtectKernelModules=yes
+ReadWritePaths=@apprundir@ # Grant access to the path systemd creates
 ProtectControlGroups=yes
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 RestrictNamespaces=yes
 RestrictRealtime=yes
 SystemCallArchitectures=native
-# Combine SystemCallFilter rules (adjust if needed)
-SystemCallFilter=@system-service ~@privileged ~@resources ~@raw-io ~@reboot ~@swap
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged ~@resources ~@raw-io ~@reboot @swap
 
 StandardOutput=journal
 StandardError=journal

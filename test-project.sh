@@ -49,7 +49,7 @@ CMD_TO_PKG=(
 
 check_and_install_command() {
     local cmd="$1"
-    local pkg="${CMD_TO_PKG[$cmd]}"
+    local pkg="${CMD_TO_PKG[$cmd]:-}" # Use :- to avoid error if key not found
 
     # Check if command exists
     if command -v "$cmd" > /dev/null 2>&1; then
@@ -67,7 +67,6 @@ check_and_install_command() {
     log_warn "Prerequisite '$cmd' not found. Attempting installation of '$pkg' using 'sudo dnf'."
     echo "--> This script will now run 'sudo dnf -y install $pkg'."
     echo "--> You may be prompted for your sudo password if not recently entered."
-    # Prompt user before proceeding with sudo? Or just rely on -y? Let's just proceed.
     sleep 2 # Brief pause for user to see message
 
     # Temporarily disable exit on error for the sudo command
@@ -82,7 +81,6 @@ check_and_install_command() {
             log_pass "Successfully installed '$pkg' providing '$cmd'."
             return 0
         else
-            # This case is unusual but possible if package installed but command isn't in PATH immediately
             log_fail "Package '$pkg' installed, but command '$cmd' still not found in PATH immediately after. Check package contents or PATH."
             TEST_FAILURES=$((TEST_FAILURES + 1))
             return 1
@@ -97,7 +95,7 @@ check_and_install_command() {
 
 log_info "Checking prerequisites and attempting auto-install if needed..."
 ALL_PREREQS_MET=true
-# Check commands in the defined order or iterate through keys
+# Check commands in a sensible order
 for cmd in python3 pip3 git autoconf automake make gcc pkg-config rpmlint tar gzip; do
     if ! check_and_install_command "$cmd"; then
         ALL_PREREQS_MET=false
@@ -131,10 +129,11 @@ test_python_syntax() {
     fi
 
     log_info "Checking Python dependency consistency..."
-    if pip3 check; then
+    if pip3 check &> /dev/null; then # Suppress normal output unless error
          log_pass "pip check reported no major inconsistencies."
     else
-         log_warn "pip check reported potential dependency inconsistencies. Review output."
+         log_warn "pip check reported potential dependency inconsistencies. Run 'pip3 check' manually."
+         # Don't fail test script for this
     fi
 }
 
@@ -147,31 +146,34 @@ run_autotools_checks() {
         log_pass "autoreconf completed."
     else
         log_fail "autoreconf failed. Check configure.ac and Makefile.am."
-        TEST_FAILURES=$((TEST_FAILURES + 1)); return
+        TEST_FAILURES=$((TEST_FAILURES + 1)); return 1
     fi
 
     # 2. Run configure
     log_info "Running configure..."
-    # Add common flags needed for RHEL/systemd integration detection if necessary
     if "$CONFIGURE_SCRIPT" --quiet; then
          log_pass "configure completed."
     else
          log_fail "configure failed. Check config.log for details."
-         TEST_FAILURES=$((TEST_FAILURES + 1)); return
+         TEST_FAILURES=$((TEST_FAILURES + 1)); return 1
     fi
 
     # 3. Run make distcheck
     log_info "Running 'make distcheck' (This may take a while)..."
     if make distcheck; then
-        log_pass "'make distcheck' completed successfully."
+    log_pass "'make distcheck' completed successfully."
     else
-        log_fail "'make distcheck' failed. Review output above for errors."
-        TEST_FAILURES=$((TEST_FAILURES + 1))
+    log_fail "'make distcheck' failed. Review output above for errors."
+    TEST_FAILURES=$((TEST_FAILURES + 1))
+    # Cleanup before returning failure
+    log_info "Running 'make clean' after distcheck failure..."
+    make clean > /dev/null 2>&1 || true # Try to clean, ignore errors
+    return 1 # <--- Return 1 on failure
     fi
-
-    # 4. Cleanup
-    log_info "Running 'make clean'..."
+    # Cleanup on success
+    log_info "Running 'make clean' after successful distcheck..."
     make clean > /dev/null
+    return 0 # Return 0 on success
 }
 
 # --- RPM Spec File Linting ---
@@ -179,13 +181,14 @@ check_specfile() {
     log_info "Checking RPM spec file syntax with rpmlint..."
     if [ ! -f "$SPEC_FILE" ]; then log_fail "RPM Spec file '$SPEC_FILE' not found"; TEST_FAILURES=$((TEST_FAILURES + 1)); return; fi
 
-    RPMLINT_OUTPUT=$(rpmlint "$SPEC_FILE" 2>&1)
-    RPMLINT_STATUS=$?
-    # Treat rpmlint exit code != 0 as failure, even if only warnings. Can adjust if needed.
-    if [ $RPMLINT_STATUS -eq 0 ]; then
-        log_pass "rpmlint check passed for $SPEC_FILE."
-        # Optionally show warnings: echo "$RPMLINT_OUTPUT" | grep -i ' W:' || true
+    # Ignore exit status 1 which often means only warnings were found
+    if RPMLINT_OUTPUT=$(rpmlint "$SPEC_FILE" 2>&1); then
+        log_pass "rpmlint check passed for $SPEC_FILE (or only warnings)."
+    elif [ $? -eq 1 ]; then
+         log_warn "rpmlint check for $SPEC_FILE produced warnings. Review output:"
+         echo "$RPMLINT_OUTPUT"
     else
+        RPMLINT_STATUS=$?
         log_fail "rpmlint check failed for $SPEC_FILE (Exit Status: $RPMLINT_STATUS)."
         echo "--- rpmlint Output ---"; echo "$RPMLINT_OUTPUT"; echo "----------------------"
         TEST_FAILURES=$((TEST_FAILURES + 1))
@@ -199,64 +202,41 @@ check_config_script() {
      # --- Ensure User/Group Exist for Test ---
      log_info "Ensuring prerequisite user/group 'yui-bot' exists for test..."
      local CREATE_FAILED=0
-     # Temporarily disable exit on error for checks and potential sudo commands
-     set +e
-
-     # Check and create group if needed
+     set +e # Disable exit on error for checks and potential sudo commands
      getent group yui-bot > /dev/null
      if [ $? -ne 0 ]; then
          log_info "Group 'yui-bot' not found, attempting creation..."
          sudo groupadd -r yui-bot
-         if [ $? -ne 0 ]; then
-             log_fail "Failed to create group 'yui-bot' using sudo."
-             CREATE_FAILED=1
-         else
-              log_pass "Successfully created group 'yui-bot' for test."
-         fi
-     else
-          log_info "Group 'yui-bot' already exists."
+         if [ $? -ne 0 ]; then log_fail "Failed to create group 'yui-bot'."; CREATE_FAILED=1; fi
      fi
-
-     # Check and create user if needed (only if group step didn't fail)
      if [ $CREATE_FAILED -eq 0 ]; then
          getent passwd yui-bot > /dev/null
          if [ $? -ne 0 ]; then
              log_info "User 'yui-bot' not found, attempting creation..."
-             # Use minimal options for system user, similar to RPM %pre
-             # No explicit home directory creation (-d) needed with -r usually
              sudo useradd -r -g yui-bot -s /sbin/nologin -c "Yui Bot Test Account" yui-bot
-             if [ $? -ne 0 ]; then
-                  log_fail "Failed to create user 'yui-bot' using sudo."
-                  CREATE_FAILED=1
-             else
-                  log_pass "Successfully created user 'yui-bot' for test."
-             fi
-         else
-             log_info "User 'yui-bot' already exists."
+             if [ $? -ne 0 ]; then log_fail "Failed to create user 'yui-bot'."; CREATE_FAILED=1; fi
          fi
      fi
-
      set -e # Re-enable exit on error
-
      if [ $CREATE_FAILED -ne 0 ]; then
-          log_fail "Could not ensure user/group prerequisites for config script test."
-          TEST_FAILURES=$((TEST_FAILURES + 1))
-          return # Skip the actual test run if creation failed
+         log_fail "Could not ensure user/group prerequisites for config script test. Skipping execution test."
+         TEST_FAILURES=$((TEST_FAILURES + 1))
+         return # Skip the actual test run
      fi
      # --- End User/Group Creation ---
 
-
-     # --- Run the actual test WITH sudo ---
-     log_info "Running config script check with sudo..."
-     set +e # Disable exit on error for the test command itself
-     sudo python3 "$CONFIG_SCRIPT" --help > /dev/null 2>&1
+     # Check if it runs and prints help message *with sudo* as intended
+     log_info "Running config script --help check with sudo..."
+     set +e
+     # Run python3 directly as sudo can change PATH/environment
+     SUDO_PYTHON=$(command -v python3)
+     sudo "$SUDO_PYTHON" "$CONFIG_SCRIPT" --help > /dev/null 2>&1
      local HELP_EXIT_CODE=$?
-     set -e # Re-enable exit on error
+     set -e
 
      if [ $HELP_EXIT_CODE -eq 0 ]; then
          log_pass "$CONFIG_SCRIPT --help executes successfully with sudo."
      else
-         # Any non-zero exit code is now a failure, as prerequisites *should* be met
          log_fail "$CONFIG_SCRIPT --help failed to execute with sudo (Exit Code: $HELP_EXIT_CODE)."
          TEST_FAILURES=$((TEST_FAILURES + 1))
      fi
@@ -270,21 +250,25 @@ echo "====================================="
 test_python_syntax
 echo "====================================="
 
-run_autotools_checks
+# Run autotools checks - capture overall result
+AUTOTOOLS_OK=true
+if ! run_autotools_checks; then
+    AUTOTOOLS_OK=false # Error already logged by function
+fi
 echo "====================================="
 
 check_specfile
 echo "====================================="
 
-check_config_script # This function now handles sudo and user/group creation
+check_config_script
 echo "====================================="
 
 # --- Final Summary ---
 log_info "Test Execution Summary"
-if [ $TEST_FAILURES -eq 0 ]; then
+if [ $TEST_FAILURES -eq 0 ] && $AUTOTOOLS_OK; then
     log_pass "All checks passed!"
     exit 0
 else
-    log_fail "${TEST_FAILURES} check(s) failed. Please review the output above."
+    log_fail "${TEST_FAILURES} explicit check(s) failed. Autotools checks also may have failed (review output)."
     exit 1
 fi

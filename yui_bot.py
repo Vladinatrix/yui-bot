@@ -24,7 +24,7 @@ try: import google.generativeai as genai; from google.api_core import exceptions
 except ImportError: print("Error: 'google-generativeai' not found. Install: `pip install google-generativeai`", file=sys.stderr); sys.exit(1)
 try: from dotenv import load_dotenv
 except ImportError: print("Error: 'python-dotenv' not found. Install: `pip install python-dotenv`", file=sys.stderr); sys.exit(1)
-try: import pidfile
+try: import pidfile # Imports the main module
 except ImportError: print("Error: 'python-pidfile' not found. Install: `pip install python-pidfile>=3.0.0`", file=sys.stderr); sys.exit(1)
 try: import psutil
 except ImportError: print("Error: 'psutil' not found. Install: `pip install psutil`", file=sys.stderr); sys.exit(1)
@@ -32,7 +32,7 @@ except ImportError: print("Error: 'psutil' not found. Install: `pip install psut
 # --- Constants ---
 APP_NAME = "yui-bot"
 DEFAULT_CONFIG_DIR = f"/etc/{APP_NAME}"
-DEFAULT_RUN_DIR = f"/var/run/{APP_NAME}"
+DEFAULT_RUN_DIR = f"/var/run/{APP_NAME}" # Should match systemd RuntimeDirectory
 PID_FILENAME = f"{APP_NAME}.pid"
 DEFAULT_PID_PATH = os.path.join(DEFAULT_RUN_DIR, PID_FILENAME)
 DEFAULT_ENV_FILE = os.path.join(DEFAULT_CONFIG_DIR, ".env")
@@ -55,9 +55,9 @@ def setup_logging(log_level_str='INFO', log_to_console=False):
     syslog_address = '/dev/log' # Default for Linux
     if sys.platform == 'darwin': syslog_address = '/var/run/syslog'
     elif not os.path.exists(syslog_address) and not isinstance(syslog_address, tuple) :
-         # Fallback for systems where /dev/log isn't a socket (rare)
-         try: import socket; syslog_address = ('127.0.0.1', 514); socket.socket(socket.AF_INET, socket.SOCK_DGRAM); logger.debug("Using UDP syslog fallback.")
-         except Exception: syslog_address = '/dev/log'; logger.debug("Reverting to /dev/log for syslog.") # Revert if socket fails
+        # Fallback for systems where /dev/log isn't a socket (rare)
+        try: import socket; syslog_address = ('127.0.0.1', 514); socket.socket(socket.AF_INET, socket.SOCK_DGRAM); logger.debug("Using UDP syslog fallback.")
+        except Exception: syslog_address = '/dev/log'; logger.debug("Reverting to /dev/log for syslog.") # Revert if socket fails
 
     try:
         syslog_handler = logging.handlers.SysLogHandler(address=syslog_address)
@@ -66,7 +66,6 @@ def setup_logging(log_level_str='INFO', log_to_console=False):
         addr_str = f"{syslog_address[0]}:{syslog_address[1]}" if isinstance(syslog_address, tuple) else syslog_address
         logger.debug(f"Logging initialized. Level: {logging.getLevelName(log_level)}. Output: Syslog ({addr_str})")
     except Exception as e:
-        # Fallback if syslog isn't available? Log to stderr?
         print(f"Warning: Could not setup syslog handler ({syslog_address}): {e}. Check syslog service/permissions.", file=sys.stderr)
         log_to_console = True # Force console logging if syslog fails
 
@@ -86,7 +85,7 @@ def load_configuration(env_file_path):
         sys.exit(1)
     if not os.access(env_file_path, os.R_OK):
          logger.critical(f"Configuration file not readable: {env_file_path}. Check permissions.")
-         sys.exit(1)
+         sys.exit(1) # Exit here if not readable
 
     try:
         load_dotenv(dotenv_path=env_file_path, override=True) # Override existing env vars if set in file
@@ -428,14 +427,14 @@ async def on_message(message):
                 # Stream intermediate results only for non-man general requests
                 if not is_man_request and ((not initial_chunk_sent and len(buffer)>0) or len(buffer) > 500 or \
                    (current_time_loop - last_sent_time > 1.5 and len(buffer) > 0)):
-                   if buffer:
-                       await send_split_message(message.channel, buffer)
-                       buffer = "" # Clear the buffer
-                       last_sent_time = current_time_loop
-                       initial_chunk_sent = True # Mark that we've started sending
+                    if buffer:
+                        await send_split_message(message.channel, buffer)
+                        buffer = "" # Clear the buffer
+                        last_sent_time = current_time_loop
+                        initial_chunk_sent = True # Mark that we've started sending
             # Send remaining buffer for general requests if streaming occurred
             if buffer and not is_man_request and initial_chunk_sent:
-                await send_split_message(message.channel, buffer)
+                 await send_split_message(message.channel, buffer)
 
             logger.debug(f"Gemini response received (length: {len(full_response)})")
 
@@ -447,7 +446,6 @@ async def on_message(message):
         except genai_types.StopCandidateException as e:
              logger.warning(f"Gemini stopped generation unexpectedly for {author_mention_str}: {e}. Partial response: {len(full_response)}")
              gemini_error_msg = "The AI stopped generating the response unexpectedly."
-             # Keep partial response? Set interaction_successful based on whether partial is useful?
              interaction_successful = True # Allow storing partial history
         except google_api_exceptions.ResourceExhausted as e:
              logger.error(f"Gemini API quota/rate limit hit: {e}")
@@ -542,10 +540,10 @@ def handle_signal_sync(signum, frame):
     # Schedule the async cleanup function to run on the loop if possible
     try:
         if discord_client and discord_client.loop and discord_client.loop.is_running():
-            asyncio.run_coroutine_threadsafe(cleanup_shutdown(), discord_client.loop)
+             asyncio.run_coroutine_threadsafe(cleanup_shutdown(), discord_client.loop)
         else:
-            logger.warning("Event loop/client unavailable for async cleanup.")
-            # Attempt synchronous cleanup? Risky. Rely on finally block in main.
+             logger.warning("Event loop/client unavailable for async cleanup.")
+             # Attempt synchronous cleanup? Risky. Rely on finally block in main.
     except Exception as e:
         logger.error(f"Error scheduling async cleanup from signal handler: {e}")
 
@@ -576,39 +574,39 @@ def main():
     # --- PID File Handling (Skip if foreground) ---
     pid_manager_context = contextlib.nullcontext() # Default for foreground
     if not args.foreground:
-        pid_dir = os.path.dirname(args.pidfile)
+        pid_dir = os.path.dirname(args.pidfile) # pid_dir = /var/run/yui-bot
         logger.debug(f"Checking PID file: {args.pidfile}")
         # Check for stale lock
         if os.path.exists(args.pidfile):
             try:
                 with open(args.pidfile, 'r') as pf: old_pid = int(pf.read().strip())
                 if psutil.pid_exists(old_pid):
-                     # Check if the process command matches (more robust check)
-                     # This can be tricky and platform-dependent, basic check for now
                      logger.critical(f"Another instance (PID {old_pid}) appears to be running. Lock file: {args.pidfile}. Exiting.")
                      sys.exit(1)
                 else:
-                    logger.warning(f"Stale PID file found ({args.pidfile} for PID {old_pid}). Removing.")
-                    os.remove(args.pidfile)
+                     logger.warning(f"Stale PID file found ({args.pidfile} for PID {old_pid}). Removing.")
+                     os.remove(args.pidfile) # Tries to remove PID file
             except (FileNotFoundError, IOError, ValueError, psutil.Error, OSError) as e:
                 logger.warning(f"Error checking/removing stale PID file {args.pidfile}: {e}. Attempting to continue cautiously.")
                 try:
                     if os.path.exists(args.pidfile): os.remove(args.pidfile)
                 except OSError as rm_err:
                      logger.error(f"Failed removing stale PID file {args.pidfile}: {rm_err}")
-                     # Decide whether to exit or proceed cautiously - let's proceed for now
-                     pass
+                     pass # Proceed cautiously
 
         # Prepare PID context manager
         try:
-            os.makedirs(pid_dir, mode=0o750, exist_ok=True) # Ensure dir exists with group write
-            # Note: Ownership should be set by RPM/install script
-            pid_manager_context = pidfile.PIDFile(args.pidfile, appname=APP_NAME) # Add appname for potential locking checks
-        except (pidfile.PIDFileAlreadyLockedError, pidfile.AlreadyLockedError): # Catch specific lock errors
+            # REMOVED: os.makedirs(pid_dir, mode=0o750, exist_ok=True)
+            # Trust systemd RuntimeDirectory= to create the directory with correct owner/perms
+            logger.debug(f"Attempting to acquire PID lock file: {args.pidfile}")
+            pid_manager_context = pidfile.PIDFile(args.pidfile, appname=APP_NAME)
+        # Corrected exception handling for pidfile v3+
+        except pidfile.AlreadyLockedError:
              logger.critical(f"PID file {args.pidfile} is locked. Another instance running?. Exiting.")
              sys.exit(1)
         except (pidfile.PIDFileCreateError, OSError) as e:
-             logger.critical(f"Could not create PID directory/file at {args.pidfile}. Check path/permissions: {e}", exc_info=True)
+             # This might still catch PermissionError if RuntimeDirectory didn't work correctly
+             logger.critical(f"Could not create/lock PID file at {args.pidfile}. Check path/permissions: {type(e).__name__} - {e}", exc_info=False) # Log type/msg
              sys.exit(1)
         except Exception as e: # Catch other unexpected pidfile init errors
              logger.critical(f"Unexpected error initializing PID file handling: {e}", exc_info=True)
@@ -620,7 +618,7 @@ def main():
     # --- Initialize Services and Run Bot ---
     main_exit_code = 0
     try:
-        with pid_manager_context: # Enters context (acquires lock) if not foreground
+        with pid_manager_context: # Enters context (acquires lock/writes PID) if not foreground
             if not args.foreground:
                 logger.info(f"Acquired PID lock file: {args.pidfile}")
 
@@ -639,9 +637,7 @@ def main():
                 logger.info("Initializing Discord client...")
                 intents = discord.Intents.default()
                 intents.messages = True; intents.message_content = True; intents.guilds = True
-                # Instantiate client FIRST
                 discord_client = discord.Client(intents=intents, heartbeat_timeout=90)
-                # THEN register events using the instance
                 discord_client.event(on_ready)
                 discord_client.event(on_message)
                 logger.info("Discord client initialized.")
@@ -652,13 +648,11 @@ def main():
             # Setup Signal Handling (Best effort)
             try:
                  loop = asyncio.get_event_loop()
-                 # Use loop.add_signal_handler on Unix systems
                  loop.add_signal_handler(signal.SIGTERM, lambda: asyncio.create_task(cleanup_shutdown()))
                  loop.add_signal_handler(signal.SIGINT, lambda: asyncio.create_task(cleanup_shutdown()))
                  logger.info("Signal handlers registered.")
             except NotImplementedError:
                  logger.warning("Signal handlers not supported on this platform (e.g., Windows).")
-                 # Fallback or alternative cleanup might be needed for Windows if run as service
             except ValueError:
                  logger.warning("Cannot set signal handlers in non-main thread (might be embedded).")
             except Exception as e:
@@ -682,7 +676,7 @@ def main():
          logger.critical("Discord login failed: Privileged Intents missing.")
          main_exit_code = 1
     except pidfile.AlreadyLockedError: # Should be caught before 'with' if not foreground
-         logger.critical(f"PID file {args.pidfile} locked unexpectedly.")
+         logger.critical(f"PID file {args.pidfile} locked unexpectedly (caught outside context).")
          main_exit_code = 1
     except KeyboardInterrupt: # Handle Ctrl+C gracefully if signal handler fails/unavailable
          logger.warning("KeyboardInterrupt received.")
@@ -701,3 +695,77 @@ def main():
 
 if __name__ == "__main__":
     main()
+EOF
+msg_pass "yui_bot.py written."
+
+# --- Final Diagnostics ---
+msg_info "Running final checks..."
+FINAL_CHECK_FAIL=0
+
+# Check Python syntax
+msg_info "Checking Python syntax..."
+if ! python3 -m py_compile yui_bot.py; then
+    msg_error "Syntax error in yui_bot.py"
+    FINAL_CHECK_FAIL=1
+fi
+if ! python3 -m py_compile configure-yui-bot.py; then
+     msg_error "Syntax error in configure-yui-bot.py"
+     FINAL_CHECK_FAIL=1
+fi
+
+# Check Shell syntax
+msg_info "Checking shell script syntax..."
+if ! bash -n test-project.sh; then
+    msg_error "Syntax error in test-project.sh"
+    FINAL_CHECK_FAIL=1
+fi
+if ! bash -n service/yui-bot.initd.in; then
+     msg_error "Syntax error in service/yui-bot.initd.in"
+     FINAL_CHECK_FAIL=1
+fi
+
+# Check Autotools generation (autoreconf only, configure/make checked by smokecheck)
+msg_info "Running 'autoreconf -fi' to check configure.ac/Makefile.am..."
+set +e
+autoreconf -fi > /dev/null 2>&1
+AUTORECONF_STATUS=$?
+set -e
+if [ $AUTORECONF_STATUS -ne 0 ]; then
+    msg_error "autoreconf -fi failed! Check configure.ac and Makefile.am."
+    FINAL_CHECK_FAIL=1
+fi
+
+# Run make smokecheck (includes distcheck)
+msg_info "Running 'make smokecheck' (this includes make distcheck and may take a while)..."
+set +e
+# Need to configure first before make smokecheck
+if [ $AUTORECONF_STATUS -eq 0 ]; then
+    ./configure --prefix=/usr --quiet
+    if [ $? -eq 0 ]; then
+        make smokecheck
+        SMOKECHECK_STATUS=$?
+    else
+        msg_error "./configure failed before smokecheck."
+        SMOKECHECK_STATUS=1 # Mark as failed
+    fi
+else
+    msg_error "Skipping smokecheck because autoreconf failed."
+    SMOKECHECK_STATUS=1 # Mark as failed
+fi
+set -e
+
+if [ $SMOKECHECK_STATUS -ne 0 ]; then
+    msg_error "'make smokecheck' failed! Review output and logs."
+    FINAL_CHECK_FAIL=1
+fi
+
+echo "---"
+if [ $FINAL_CHECK_FAIL -eq 0 ]; then
+    msg_pass "All file updates applied and basic diagnostic checks passed."
+    msg_info "The codebase should be in a consistent, buildable state (v1.3.21)."
+else
+    msg_error "Some files were updated, but subsequent diagnostic checks failed. Please review errors above."
+    exit 1
+fi
+
+exit 0

@@ -23,19 +23,19 @@ NAME=@PACKAGE_NAME@
 PYTHON_EXEC=@PYTHON3@
 DAEMON_USER=@installuser@
 DAEMON_GROUP=@installgroup@
-INSTALL_DIR=@pkgdatadir@
+INSTALL_DIR=@pkgdatadir@ # Standard var
 DAEMON_SCRIPT="$INSTALL_DIR/yui_bot.py"
-CONFIG_FILE="@envfile@"
-PID_DIR="@apprundir@"
-PID_FILE="@pidfile@"
-DAEMON_ARGS="--config $CONFIG_FILE --pidfile $PID_FILE --log-level INFO"
-SSD_NAME=$(basename $PYTHON_EXEC)
+CONFIG_FILE="@envfile@" # Standard var
+PID_DIR="@apprundir@" # Standard var
+PID_FILE="@pidfile@" # Standard var
+DAEMON_ARGS="--config $CONFIG_FILE --pidfile <span class="math-inline">PID\_FILE \-\-log\-level INFO"
+SSD\_NAME\=</span>(basename $PYTHON_EXEC)
 
 [ -x "$DAEMON_SCRIPT" ] || { echo "Error: $DAEMON_SCRIPT missing/not executable."; exit 1; }
 if [ -f /lib/lsb/init-functions ]; then . /lib/lsb/init-functions; else log_daemon_msg() { echo -n "$1: $2"; }; log_end_msg() { [ $1 -eq 0 ] && echo "." || echo " failed."; return $1; }; log_progress_msg() { echo -n " $1"; }; log_warning_msg() { echo " Warn: $1"; }; log_failure_msg() { echo " Err: $1"; }; status_of_proc() { pidfile="$1"; if [ -f "$pidfile" ]; then read pid < "$pidfile"; if [ -n "$pid" ] && ps -p $pid > /dev/null 2>&1; then return 0; fi; fi; return 3; }; fi
 
 check_user_group() { if ! id "$DAEMON_USER" > /dev/null 2>&1; then log_failure_msg "User $DAEMON_USER missing."; return 1; fi; if ! getent group "$DAEMON_GROUP" > /dev/null 2>&1; then log_failure_msg "Group $DAEMON_GROUP missing."; return 1; fi; return 0; }
-do_start() { check_user_group || return 2; if [ ! -d "$PID_DIR" ]; then log_failure_msg "Run dir $PID_DIR missing."; return 2; fi; if command -v start-stop-daemon > /dev/null 2>&1; then if start-stop-daemon --start --quiet --pidfile "$PID_FILE" --chuid "$DAEMON_USER":"$DAEMON_GROUP" --exec "$PYTHON_EXEC" --test > /dev/null; then start-stop-daemon --start --quiet --pidfile "$PID_FILE" --make-pidfile --background --chuid "$DAEMON_USER":"$DAEMON_GROUP" --chdir "$INSTALL_DIR" --exec "$PYTHON_EXEC" -- $DAEMON_SCRIPT $DAEMON_ARGS || return 2; return 0; else log_progress_msg "(already running?)"; if status_of_proc "$PID_FILE" "$SSD_NAME"; then return 1; else return 2; fi; fi; else log_failure_msg "start-stop-daemon missing."; return 2; fi; }
-do_stop() { if command -v start-stop-daemon > /dev/null 2>&1; then start-stop-daemon --stop --quiet --retry=TERM/10/KILL/5 --pidfile "$PID_FILE" --name $SSD_NAME; RETVAL="$?"; if ! status_of_proc "$PID_FILE" "$SSD_NAME"; then rm -f "$PID_FILE"; fi; return $RETVAL; else log_failure_msg "start-stop-daemon missing."; return 2; fi; }
+do_start() { check_user_group || return 2; if [ ! -d "$PID_DIR" ]; then mkdir -p "$PID_DIR" && chown "$DAEMON_USER":"$DAEMON_GROUP" "$PID_DIR" && chmod 750 "$PID_DIR" || { log_failure_msg "Failed to create/setup $PID_DIR"; return 1; } ; fi; if command -v start-stop-daemon > /dev/null 2>&1; then if start-stop-daemon --start --quiet --pidfile "$PID_FILE" --chuid "$DAEMON_USER":"$DAEMON_GROUP" --exec "$PYTHON_EXEC" --test > /dev/null; then start-stop-daemon --start --quiet --pidfile "$PID_FILE" --make-pidfile --background --chuid "$DAEMON_USER":"$DAEMON_GROUP" --chdir "$INSTALL_DIR" --exec "$PYTHON_EXEC" -- $DAEMON_SCRIPT $DAEMON_ARGS || return 2; return 0; else log_progress_msg "(already running?)"; if status_of_proc "$PID_FILE" "$SSD_NAME"; then return 1; else return 2; fi; fi; else log_failure_msg "start-stop-daemon missing."; return 2; fi; }
+do_stop() { if command -v start-stop-daemon > /dev/null 2>&1; then start-stop-daemon --stop --quiet --retry=TERM/10/KILL/5 --pidfile "$PID_FILE" --name <span class="math-inline">SSD\_NAME; RETVAL\="</span>?"; if ! status_of_proc "$PID_FILE" "$SSD_NAME"; then rm -f "$PID_FILE"; fi; return $RETVAL; else log_failure_msg "start-stop-daemon missing."; return 2; fi; }
 case "$1" in start) log_daemon_msg "Starting $DESC" "$NAME"; do_start; log_end_msg $? ;; stop) log_daemon_msg "Stopping $DESC" "$NAME"; do_stop; log_end_msg $? ;; status) status_of_proc -p "$PID_FILE" "$PYTHON_EXEC" "$NAME"; exit $? ;; restart|force-reload) log_daemon_msg "Restarting $DESC" "$NAME"; do_stop; sleep 1; do_start; log_end_msg $? ;; *) echo "Usage: $0 {start|stop|status|restart}" >&2; exit 3 ;; esac
 exit 0
